@@ -327,13 +327,27 @@ export default function AnalyzePage() {
             <AnalysisResultView result={analysisResult} />
             <FadeIn delay={0.5}>
               <Card>
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 space-y-3">
                   <Button
                     className="w-full"
                     onClick={() => router.push("/match")}
                   >
                     내 프로필과 매칭하기
                   </Button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push("/cover-letter")}
+                    >
+                      자소서 생성
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push("/interview")}
+                    >
+                      면접 예상질문
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </FadeIn>
