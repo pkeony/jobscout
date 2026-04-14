@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractJson } from "@/lib/prompts/analyze";
@@ -211,12 +211,12 @@ export default function AnalyzePage() {
   const router = useRouter();
   const [crawlMeta, setCrawlMeta] = useState<CrawlMeta | null>(null);
   const [jdText, setJdText] = useState<string | null>(null);
-  const [analysisStarted, setAnalysisStarted] = useState(false);
+  const startedRef = useRef(false);
 
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/analyze");
 
-  // ─── sessionStorage에서 데이터 복원 ──────────────
+  // ─── sessionStorage에서 데이터 복원 + 분석 시작 ───
   useEffect(() => {
     const text = sessionStorage.getItem("jobscout:jdText");
     if (!text) {
@@ -229,15 +229,12 @@ export default function AnalyzePage() {
     if (metaStr) {
       setCrawlMeta(JSON.parse(metaStr) as CrawlMeta);
     }
-  }, [router]);
 
-  // ─── 분석 시작 ─────────────────────────────────
-  useEffect(() => {
-    if (!jdText || analysisStarted) return;
-
-    setAnalysisStarted(true);
-    start({ text: jdText });
-  }, [jdText, analysisStarted, start]);
+    if (!startedRef.current) {
+      startedRef.current = true;
+      start({ text });
+    }
+  }, [router, start]);
 
   // ─── JSON 파싱 ─────────────────────────────────
   const analysisResult = useMemo<AnalysisResult | null>(() => {
@@ -252,7 +249,12 @@ export default function AnalyzePage() {
   // ─── 재시도 ────────────────────────────────────
   const handleRetry = () => {
     reset();
-    setAnalysisStarted(false);
+    startedRef.current = false;
+    const text = sessionStorage.getItem("jobscout:jdText");
+    if (text) {
+      startedRef.current = true;
+      start({ text });
+    }
   };
 
   // ─── 로딩 중 (데이터 없음) ────────────────────

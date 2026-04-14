@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractInterviewJson } from "@/lib/prompts/interview";
@@ -144,7 +144,7 @@ function InterviewResultView({ result }: { result: InterviewResult }) {
 export default function InterviewPage() {
   const router = useRouter();
   const [jdText, setJdText] = useState<string | null>(null);
-  const [started, setStarted] = useState(false);
+  const startedRef = useRef(false);
 
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/interview");
@@ -156,13 +156,12 @@ export default function InterviewPage() {
       return;
     }
     setJdText(text);
-  }, [router]);
 
-  useEffect(() => {
-    if (!jdText || started) return;
-    setStarted(true);
-    start({ jdText });
-  }, [jdText, started, start]);
+    if (!startedRef.current) {
+      startedRef.current = true;
+      start({ jdText: text });
+    }
+  }, [router, start]);
 
   const interviewResult = useMemo<InterviewResult | null>(() => {
     if (status !== "done" || !fullText) return null;
@@ -175,7 +174,12 @@ export default function InterviewPage() {
 
   const handleRetry = () => {
     reset();
-    setStarted(false);
+    startedRef.current = false;
+    const text = sessionStorage.getItem("jobscout:jdText");
+    if (text) {
+      startedRef.current = true;
+      start({ jdText: text });
+    }
   };
 
   if (!jdText) {

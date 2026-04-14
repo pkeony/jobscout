@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
@@ -21,7 +21,7 @@ import { FadeIn } from "@/components/motion";
 export default function CoverLetterPage() {
   const router = useRouter();
   const [jdText, setJdText] = useState<string | null>(null);
-  const [started, setStarted] = useState(false);
+  const startedRef = useRef(false);
   const [copied, setCopied] = useState(false);
 
   const { status, fullText, error, start, reset } =
@@ -35,10 +35,6 @@ export default function CoverLetterPage() {
       return;
     }
     setJdText(text);
-  }, [router]);
-
-  useEffect(() => {
-    if (!jdText || started) return;
 
     const savedProfile = localStorage.getItem("jobscout:profile");
     if (!savedProfile) {
@@ -46,10 +42,12 @@ export default function CoverLetterPage() {
       return;
     }
 
-    const profile = JSON.parse(savedProfile) as UserProfile;
-    setStarted(true);
-    start({ jdText, profile });
-  }, [jdText, started, start, router]);
+    if (!startedRef.current) {
+      startedRef.current = true;
+      const profile = JSON.parse(savedProfile) as UserProfile;
+      start({ jdText: text, profile });
+    }
+  }, [router, start]);
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(fullText);
@@ -59,7 +57,14 @@ export default function CoverLetterPage() {
 
   const handleRetry = () => {
     reset();
-    setStarted(false);
+    startedRef.current = false;
+    const text = sessionStorage.getItem("jobscout:jdText");
+    const savedProfile = localStorage.getItem("jobscout:profile");
+    if (text && savedProfile) {
+      startedRef.current = true;
+      const profile = JSON.parse(savedProfile) as UserProfile;
+      start({ jdText: text, profile });
+    }
   };
 
   if (!jdText) {
