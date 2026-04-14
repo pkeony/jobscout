@@ -323,7 +323,21 @@ export default function AnalyzePage() {
 
         {/* 분석 완료 — 구조화 결과 */}
         {status === "done" && analysisResult && (
-          <AnalysisResultView result={analysisResult} />
+          <>
+            <AnalysisResultView result={analysisResult} />
+            <FadeIn delay={0.5}>
+              <Card>
+                <CardContent className="pt-6">
+                  <Button
+                    className="w-full"
+                    onClick={() => router.push("/match")}
+                  >
+                    내 프로필과 매칭하기
+                  </Button>
+                </CardContent>
+              </Card>
+            </FadeIn>
+          </>
         )}
 
         {/* 분석 완료 — JSON 파싱 실패 fallback */}

@@ -54,6 +54,35 @@ export const CrawlResultSchema = z.object({
 });
 export type CrawlResult = z.infer<typeof CrawlResultSchema>;
 
+// ─── UserProfile ────────────────────────────────────
+
+export const UserProfileSchema = z.object({
+  skills: z.array(z.string()),
+  experience: z.string(),
+  education: z.string().optional(),
+  introduction: z.string().optional(),
+});
+export type UserProfile = z.infer<typeof UserProfileSchema>;
+
+// ─── MatchResult ────────────────────────────────────
+
+export const SkillMatchSchema = z.object({
+  name: z.string(),
+  status: z.enum(["match", "partial", "gap"]),
+  comment: z.string(),
+});
+export type SkillMatch = z.infer<typeof SkillMatchSchema>;
+
+export const MatchResultSchema = z.object({
+  score: z.number().min(0).max(100),
+  summary: z.string(),
+  strengths: z.array(z.string()),
+  gaps: z.array(z.string()),
+  skillMatches: z.array(SkillMatchSchema),
+  advice: z.string(),
+});
+export type MatchResult = z.infer<typeof MatchResultSchema>;
+
 // ─── API Request Schemas ────────────────────────────
 
 export const CrawlRequestSchema = z.object({
@@ -65,3 +94,9 @@ export const AnalyzeRequestSchema = z.object({
   text: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
 });
 export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
+
+export const MatchRequestSchema = z.object({
+  jdText: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  profile: UserProfileSchema,
+});
+export type MatchRequest = z.infer<typeof MatchRequestSchema>;
