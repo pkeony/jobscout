@@ -1,0 +1,68 @@
+import { z } from "zod";
+
+// ─── Skill ──────────────────────────────────────────
+
+export const SkillCategorySchema = z.enum(["required", "preferred", "etc"]);
+export type SkillCategory = z.infer<typeof SkillCategorySchema>;
+
+export const SkillLevelSchema = z.enum([
+  "beginner",
+  "intermediate",
+  "advanced",
+  "unspecified",
+]);
+export type SkillLevel = z.infer<typeof SkillLevelSchema>;
+
+export const SkillSchema = z.object({
+  name: z.string(),
+  category: SkillCategorySchema,
+  level: SkillLevelSchema,
+  context: z.string(),
+});
+export type Skill = z.infer<typeof SkillSchema>;
+
+// ─── CompanyInfo ────────────────────────────────────
+
+export const CompanyInfoSchema = z.object({
+  name: z.string(),
+  industry: z.string().optional(),
+  size: z.string().optional(),
+  culture: z.array(z.string()),
+});
+export type CompanyInfo = z.infer<typeof CompanyInfoSchema>;
+
+// ─── AnalysisResult ─────────────────────────────────
+
+export const AnalysisResultSchema = z.object({
+  skills: z.array(SkillSchema),
+  summary: z.string(),
+  roleTitle: z.string(),
+  experienceLevel: z.string(),
+  companyInfo: CompanyInfoSchema,
+  keyResponsibilities: z.array(z.string()),
+  benefits: z.array(z.string()),
+});
+export type AnalysisResult = z.infer<typeof AnalysisResultSchema>;
+
+// ─── CrawlResult ────────────────────────────────────
+
+export const CrawlResultSchema = z.object({
+  title: z.string(),
+  company: z.string(),
+  text: z.string(),
+  url: z.string(),
+});
+export type CrawlResult = z.infer<typeof CrawlResultSchema>;
+
+// ─── API Request Schemas ────────────────────────────
+
+export const CrawlRequestSchema = z.object({
+  url: z.string().url("유효한 URL을 입력해주세요"),
+});
+export type CrawlRequest = z.infer<typeof CrawlRequestSchema>;
+
+export const AnalyzeRequestSchema = z.object({
+  text: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  apiKey: z.string().min(1, "API Key가 필요합니다"),
+});
+export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
