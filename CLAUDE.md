@@ -1,6 +1,18 @@
 # JobScout — AI 채용공고 분석기
 
-> 상세 아키텍처는 [ARCHITECTURE.md](ARCHITECTURE.md), 전체 지식맵은 [AGENTS.md](AGENTS.md) 참조.
+## 지식맵
+
+> 필요한 문서만 점진적으로 열어 컨텍스트 절약. 처음부터 전부 읽지 않음.
+
+| 문서 | 용도 | 언제 읽나 |
+|------|------|-----------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 시스템 구조, 데이터 흐름, 디렉토리 맵 | 새 기능 추가 전 |
+| [SECURITY.md](SECURITY.md) | API Key 처리, SSRF 방지, 크롤링 안전 | 보안 관련 작업 시 |
+| [QUALITY_SCORE.md](QUALITY_SCORE.md) | 코드 품질 루브릭 | PR/리뷰 시 |
+| [docs/design-docs/](docs/design-docs/) | 기능별 설계 문서 | 해당 기능 수정 시 |
+| [docs/product-specs/](docs/product-specs/) | 수용 기준, 기능 명세 | 기능 구현/검증 시 |
+| [docs/references/](docs/references/) | 외부 API 레퍼런스 | 크롤러/API 작업 시 |
+| [docs/exec-plans/](docs/exec-plans/) | 실행 계획 (Phase별) | 일정 확인 시 |
 
 ## 규칙
 
