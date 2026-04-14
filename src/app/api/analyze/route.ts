@@ -8,6 +8,14 @@ import {
 } from "@/lib/prompts/analyze";
 
 export async function POST(req: Request) {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "서버에 API Key가 설정되지 않았습니다" },
+      { status: 500 },
+    );
+  }
+
   const body: unknown = await req.json();
   const parsed = AnalyzeRequestSchema.safeParse(body);
 
@@ -18,7 +26,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { text, apiKey } = parsed.data;
+  const { text } = parsed.data;
   const messages = buildAnalyzeMessages(text);
 
   const generator = stream(apiKey, messages, {

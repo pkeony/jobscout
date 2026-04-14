@@ -1,27 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FadeIn } from "@/components/motion";
 
 export default function HomePage() {
   const router = useRouter();
 
-  // ─── State ──────────────────────────────────────
-  const [apiKey, setApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
   const [inputMode, setInputMode] = useState<"url" | "text">("url");
   const [url, setUrl] = useState("");
   const [jdText, setJdText] = useState("");
@@ -30,24 +21,6 @@ export default function HomePage() {
   >("idle");
   const [crawlError, setCrawlError] = useState<string | null>(null);
 
-  // ─── localStorage에서 API Key 복원 ────────────────
-  useEffect(() => {
-    const saved = localStorage.getItem("jobscout:apiKey");
-    if (saved) {
-      setApiKey(saved);
-    } else {
-      setShowApiKey(true);
-    }
-  }, []);
-
-  const saveApiKey = useCallback((key: string) => {
-    setApiKey(key);
-    if (key.trim()) {
-      localStorage.setItem("jobscout:apiKey", key.trim());
-    }
-  }, []);
-
-  // ─── 분석 페이지로 이동 ───────────────────────────
   const goToAnalyze = useCallback(
     (text: string, meta?: { title: string; company: string; url: string }) => {
       sessionStorage.setItem("jobscout:jdText", text);
@@ -59,13 +32,8 @@ export default function HomePage() {
     [router],
   );
 
-  // ─── URL 크롤링 → 분석 ────────────────────────────
   const handleUrlSubmit = useCallback(async () => {
     if (!url.trim()) return;
-    if (!apiKey.trim()) {
-      setShowApiKey(true);
-      return;
-    }
 
     setCrawlStatus("loading");
     setCrawlError(null);
@@ -101,17 +69,12 @@ export default function HomePage() {
           : "크롤링 중 오류가 발생했습니다",
       );
     }
-  }, [url, apiKey, goToAnalyze]);
+  }, [url, goToAnalyze]);
 
-  // ─── 텍스트 직접 입력 → 분석 ──────────────────────
   const handleTextSubmit = useCallback(() => {
     if (!jdText.trim() || jdText.trim().length < 50) return;
-    if (!apiKey.trim()) {
-      setShowApiKey(true);
-      return;
-    }
     goToAnalyze(jdText.trim());
-  }, [jdText, apiKey, goToAnalyze]);
+  }, [jdText, goToAnalyze]);
 
   return (
     <main className="flex min-h-screen flex-col items-center px-4 py-12 sm:py-20">
@@ -123,53 +86,6 @@ export default function HomePage() {
             AI 채용공고 분석기 — JD를 넣으면 스킬, 매칭, 자소서까지
           </p>
         </div>
-
-        {/* API Key 섹션 */}
-        {showApiKey && (
-          <FadeIn>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Gemini API Key</CardTitle>
-                <CardDescription>
-                  Google AI Studio에서 발급받은 키를 입력하세요. 키는 브라우저에만
-                  저장되며 서버에 보관하지 않습니다.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-2">
-                <Input
-                  type="password"
-                  placeholder="AIza..."
-                  value={apiKey}
-                  onChange={(e) => saveApiKey(e.target.value)}
-                  className="flex-1"
-                />
-                {apiKey.trim() && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowApiKey(false)}
-                  >
-                    확인
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          </FadeIn>
-        )}
-
-        {/* API Key 설정 버튼 (접힌 상태) */}
-        {!showApiKey && apiKey.trim() && (
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowApiKey(true)}
-              className="text-xs text-muted-foreground"
-            >
-              API Key 설정
-            </Button>
-          </div>
-        )}
 
         {/* JD 입력 */}
         <Card>

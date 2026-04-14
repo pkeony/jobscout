@@ -63,6 +63,5 @@ export type CrawlRequest = z.infer<typeof CrawlRequestSchema>;
 
 export const AnalyzeRequestSchema = z.object({
   text: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
-  apiKey: z.string().min(1, "API Key가 필요합니다"),
 });
 export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;

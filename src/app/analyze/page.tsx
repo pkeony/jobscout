@@ -235,15 +235,9 @@ export default function AnalyzePage() {
   useEffect(() => {
     if (!jdText || analysisStarted) return;
 
-    const apiKey = localStorage.getItem("jobscout:apiKey");
-    if (!apiKey) {
-      router.replace("/");
-      return;
-    }
-
     setAnalysisStarted(true);
-    start({ text: jdText, apiKey });
-  }, [jdText, analysisStarted, start, router]);
+    start({ text: jdText });
+  }, [jdText, analysisStarted, start]);
 
   // ─── JSON 파싱 ─────────────────────────────────
   const analysisResult = useMemo<AnalysisResult | null>(() => {
