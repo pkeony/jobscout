@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractJson } from "@/lib/prompts/analyze";
 import type { AnalysisResult, Skill } from "@/types";
@@ -19,6 +19,7 @@ import { AppShell } from "@/components/app-shell";
 import { friendlyError } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { FileDropZone } from "@/components/file-drop-zone";
 import { Search } from "lucide-react";
 
 interface CrawlMeta {
@@ -81,77 +82,167 @@ function StatsBox({ skills }: { skills: Skill[] }) {
 }
 
 /* ─── 스트리밍 스켈레톤 ─── */
-function AnalysisSkeleton() {
+interface AnalysisProgressProps {
+  inputMode: "url" | "text" | "image";
+  deltaChars: number;
+  crawlTitle?: string;
+  phase: "crawling" | "analyzing";
+}
+
+function AnalysisProgress({ inputMode, deltaChars, crawlTitle, phase }: AnalysisProgressProps) {
+  const sourceLabel =
+    inputMode === "url" ? "URL 크롤링" : inputMode === "image" ? "이미지 OCR" : "텍스트 입력";
+  const progressRatio = Math.min(0.95, deltaChars / 3500);
+  const isCrawling = phase === "crawling";
+  const stepOneState = isCrawling ? "active" : "done";
+  const stepTwoState =
+    isCrawling ? "pending" : deltaChars > 0 ? "active" : "pending";
+  const stepThreeState = progressRatio > 0.85 ? "active" : "pending";
+  const bigNum = isCrawling
+    ? "01"
+    : stepThreeState === "active"
+      ? "03"
+      : stepTwoState === "active"
+        ? "02"
+        : "01";
+
   return (
-    <div className="space-y-0 animate-pulse">
-      {/* 히어로 헤더 */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-12 pb-8">
-        <div className="w-full md:w-2/3">
-          <Skeleton className="h-4 w-32 mb-4" />
-          <Skeleton className="h-14 w-[80%] mb-3" />
-          <Skeleton className="h-5 w-full" />
-          <Skeleton className="h-5 w-3/4 mt-2" />
-        </div>
-        <div className="w-40 h-40 bg-muted border-4 border-foreground/20 flex items-center justify-center shrink-0">
-          <div className="flex flex-col items-center gap-2">
-            <Skeleton className="h-10 w-16" />
-            <Skeleton className="h-3 w-20" />
+    <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-12 items-start pt-8">
+      {/* ─── 좌측: 진행 상태 ─── */}
+      <div className="space-y-8">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="h-2 w-2 bg-secondary animate-pulse" />
+            <span className="text-[10px] uppercase tracking-[0.3em] text-secondary font-bold">
+              {isCrawling ? "채용공고 수집 중" : "분석 진행 중"}
+            </span>
           </div>
+          <h2 className="font-heading text-4xl md:text-5xl font-black italic text-foreground leading-none">
+            {crawlTitle ?? "채용공고"}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-3 max-w-md leading-relaxed">
+            {isCrawling
+              ? "채용공고 본문과 포지션 목록을 가져오고 있습니다."
+              : "AI가 스킬·자격요건·혜택 등 주요 정보를 추출하고 있습니다."}
+          </p>
         </div>
+
+        <ol className="space-y-4">
+          <ProgressStep
+            num="01"
+            label={sourceLabel}
+            sub={isCrawling ? "진행 중" : "완료됨"}
+            state={stepOneState}
+          />
+          <ProgressStep
+            num="02"
+            label="AI 분석"
+            sub={
+              stepTwoState === "active"
+                ? `${deltaChars.toLocaleString()}자 수신 중`
+                : isCrawling
+                  ? "크롤 완료 대기"
+                  : "시작 대기"
+            }
+            state={stepTwoState}
+            progress={stepTwoState === "active" ? progressRatio : undefined}
+          />
+          <ProgressStep
+            num="03"
+            label="결과 구성"
+            sub="JSON 파싱 및 렌더링"
+            state={stepThreeState}
+          />
+        </ol>
       </div>
 
-      {/* 좌우 대비 패널 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t-4 border-foreground/20 mb-12">
-        <div className="p-8 bg-muted/50 space-y-6">
-          <Skeleton className="h-6 w-40 mb-6" />
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="p-4 bg-card border-l-4 border-border space-y-2">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-4/5" />
-              </div>
-            ))}
+      {/* ─── 우측: 스캔 비주얼 ─── */}
+      <div className="hidden md:flex justify-center items-center">
+        <div className="relative w-48 h-48">
+          <div className="absolute inset-0 border-4 border-foreground dot-matrix-texture bg-card" />
+          <div className="absolute inset-3 border-2 border-secondary/30 animate-pulse" />
+          <div className="absolute inset-6 border border-secondary/50" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="font-heading italic font-black text-7xl text-secondary/60 tabular-nums">
+              {bigNum}
+            </span>
           </div>
+          <div className="absolute -top-1 -left-1 w-3 h-3 bg-foreground" />
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-foreground" />
         </div>
-        <div className="p-8 bg-muted space-y-6">
-          <Skeleton className="h-6 w-40 mb-6" />
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="p-4 bg-card/50 border-l-4 border-foreground/20 space-y-2">
-                <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 다크 프레임 섹션 */}
-      <div className="bg-foreground p-1 mb-12">
-        <div className="px-4 py-2 flex items-center gap-2">
-          <Skeleton className="h-2 w-2" />
-          <Skeleton className="h-3 w-28" />
-        </div>
-        <div className="bg-card p-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-3">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 액션 */}
-      <div className="flex justify-center">
-        <Skeleton className="h-14 w-64" />
       </div>
     </div>
+  );
+}
+
+function ProgressStep({
+  num,
+  label,
+  sub,
+  state,
+  progress,
+}: {
+  num: string;
+  label: string;
+  sub: string;
+  state: "done" | "active" | "pending";
+  progress?: number;
+}) {
+  if (state === "active") {
+    return (
+      <li className="stepped-pixel-border bg-card p-5">
+        <div className="flex items-start gap-4">
+          <span className="font-heading italic font-black text-2xl text-secondary tabular-nums">
+            {num}
+          </span>
+          <div className="flex-1">
+            <h3 className="font-heading font-bold text-lg text-foreground">{label}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 tracking-wider uppercase">
+              {sub}
+            </p>
+            {typeof progress === "number" && (
+              <div className="mt-4 h-2 w-full bg-muted border border-foreground/10 overflow-hidden">
+                <div
+                  className="h-full bg-secondary transition-all duration-300"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </li>
+    );
+  }
+  if (state === "done") {
+    return (
+      <li className="flex items-start gap-4 p-2">
+        <span className="font-heading italic font-black text-xl text-foreground/40 tabular-nums">
+          {num}
+        </span>
+        <div className="flex-1">
+          <h3 className="font-heading font-medium text-base text-foreground/50 line-through">
+            {label}
+          </h3>
+          <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wider uppercase">
+            {sub}
+          </p>
+        </div>
+        <span className="text-accent text-sm tracking-widest">✓</span>
+      </li>
+    );
+  }
+  return (
+    <li className="flex items-start gap-4 p-2 opacity-40">
+      <span className="font-heading italic font-black text-xl text-foreground/40 tabular-nums">
+        {num}
+      </span>
+      <div className="flex-1">
+        <h3 className="font-heading font-medium text-base text-foreground">{label}</h3>
+        <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wider uppercase">
+          {sub}
+        </p>
+      </div>
+    </li>
   );
 }
 
@@ -161,6 +252,7 @@ function AnalysisSkeleton() {
 
 export default function AnalyzePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [crawlMeta, setCrawlMeta] = useState<CrawlMeta | null>(null);
   const [jdText, setJdText] = useState<string | null>(null);
   const [cachedResult, setCachedResult] = useState<AnalysisResult | null>(null);
@@ -169,19 +261,34 @@ export default function AnalyzePage() {
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/analyze");
 
-  /* ─── URL/텍스트 입력 상태 (jdText 없을 때) ─── */
-  const [inputMode, setInputMode] = useState<"url" | "text">("url");
+  /* ─── URL/텍스트/이미지 입력 상태 (jdText 없을 때) ─── */
+  const [inputMode, setInputMode] = useState<"url" | "text" | "image">("url");
   const [urlInput, setUrlInput] = useState("");
+  const queryAutoCrawledRef = useRef(false);
   const [textInput, setTextInput] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [crawlStatus, setCrawlStatus] = useState<"idle" | "loading" | "error">("idle");
   const [crawlError, setCrawlError] = useState<string | null>(null);
+  const [autoRetried, setAutoRetried] = useState(false);
+
+  /* ─── 다중 포지션 피커 상태 ─── */
+  const [pendingCrawl, setPendingCrawl] = useState<{
+    text: string;
+    positions: string[];
+    meta: CrawlMeta;
+  } | null>(null);
 
   const startAnalysis = useCallback(
-    (text: string, meta?: CrawlMeta) => {
+    (text: string, meta?: CrawlMeta, focusPosition?: string) => {
       sessionStorage.removeItem("jobscout:analyzeResult");
       sessionStorage.removeItem("jobscout:coverLetterResult");
       sessionStorage.removeItem("jobscout:interviewResult");
       sessionStorage.setItem("jobscout:jdText", text);
+      if (focusPosition) {
+        sessionStorage.setItem("jobscout:focusPosition", focusPosition);
+      } else {
+        sessionStorage.removeItem("jobscout:focusPosition");
+      }
       if (meta) {
         sessionStorage.setItem("jobscout:crawlMeta", JSON.stringify(meta));
         setCrawlMeta(meta);
@@ -191,40 +298,111 @@ export default function AnalyzePage() {
       }
       setJdText(text);
       setCachedResult(null);
+      setAutoRetried(false);
+      setPendingCrawl(null);
       reset();
       startedRef.current = true;
-      start({ text });
+      start(focusPosition ? { text, focusPosition } : { text });
     },
     [start, reset],
   );
 
-  const handleUrlSubmit = useCallback(async () => {
-    if (!urlInput.trim()) return;
+  const handleUrlSubmit = useCallback(async (urlOverride?: string) => {
+    const target = (urlOverride ?? urlInput).trim();
+    if (!target) return;
+    setUrlInput(target);
     setCrawlStatus("loading");
     setCrawlError(null);
     try {
       const res = await fetch("/api/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: urlInput.trim() }),
+        body: JSON.stringify({ url: target }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error: string };
         throw new Error(data.error);
       }
-      const data = (await res.json()) as { title: string; company: string; text: string; url: string };
+      const data = (await res.json()) as {
+        title: string;
+        company: string;
+        text: string;
+        url: string;
+        positions?: string[];
+      };
       setCrawlStatus("idle");
-      startAnalysis(data.text, { title: data.title, company: data.company, url: data.url });
+      const meta = { title: data.title, company: data.company, url: data.url };
+      const positions = data.positions ?? [];
+      if (positions.length > 1) {
+        // 다중 포지션 → 피커 띄우고 사용자 선택 대기
+        setPendingCrawl({ text: data.text, positions, meta });
+      } else {
+        startAnalysis(data.text, meta);
+      }
     } catch (err) {
       setCrawlStatus("error");
       setCrawlError(err instanceof Error ? err.message : "크롤링 중 오류가 발생했습니다");
     }
   }, [urlInput, startAnalysis]);
 
+  const handlePositionSelect = useCallback(
+    (position: string | null) => {
+      if (!pendingCrawl) return;
+      startAnalysis(
+        pendingCrawl.text,
+        pendingCrawl.meta,
+        position ?? undefined,
+      );
+    },
+    [pendingCrawl, startAnalysis],
+  );
+
   const handleTextSubmit = useCallback(() => {
     if (!textInput.trim() || textInput.trim().length < 50) return;
     startAnalysis(textInput.trim());
   }, [textInput, startAnalysis]);
+
+  // 쿼리 ?url=... 로 들어오면 1회 자동 크롤 (대시보드에서 넘어온 케이스)
+  useEffect(() => {
+    if (queryAutoCrawledRef.current) return;
+    const urlParam = searchParams.get("url");
+    if (!urlParam) return;
+    queryAutoCrawledRef.current = true;
+    void handleUrlSubmit(urlParam);
+    // 쿼리 문자열은 더 이상 필요 없으니 정리
+    router.replace("/analyze");
+  }, [searchParams, handleUrlSubmit, router]);
+
+  const handleImageSubmit = useCallback(() => {
+    if (imageFiles.length === 0) return;
+    sessionStorage.removeItem("jobscout:analyzeResult");
+    sessionStorage.removeItem("jobscout:coverLetterResult");
+    sessionStorage.removeItem("jobscout:interviewResult");
+    sessionStorage.removeItem("jobscout:jdText");
+    sessionStorage.removeItem("jobscout:crawlMeta");
+    setJdText("__image__");
+    setCrawlMeta({ title: `이미지 ${imageFiles.length}장 분석`, company: "업로드", url: "" });
+    setCachedResult(null);
+    setAutoRetried(false);
+    reset();
+    startedRef.current = true;
+
+    const formData = new FormData();
+    imageFiles.forEach((f) => formData.append("files", f));
+    start(formData, "/api/analyze-from-image");
+  }, [imageFiles, reset, start]);
+
+  const addImages = useCallback((file: File) => {
+    setImageFiles((prev) => {
+      if (prev.length >= 5) return prev;
+      if (prev.some((f) => f.name === file.name && f.size === file.size)) return prev;
+      return [...prev, file];
+    });
+  }, []);
+
+  const removeImage = useCallback((idx: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
 
   const handleReset = () => {
     sessionStorage.removeItem("jobscout:jdText");
@@ -235,10 +413,14 @@ export default function AnalyzePage() {
     setJdText(null);
     setCrawlMeta(null);
     setCachedResult(null);
+    setAutoRetried(false);
+    setPendingCrawl(null);
+    sessionStorage.removeItem("jobscout:focusPosition");
     reset();
     startedRef.current = false;
     setUrlInput("");
     setTextInput("");
+    setImageFiles([]);
     setCrawlStatus("idle");
     setCrawlError(null);
   };
@@ -264,7 +446,8 @@ export default function AnalyzePage() {
 
     if (!startedRef.current) {
       startedRef.current = true;
-      start({ text });
+      const focusPosition = sessionStorage.getItem("jobscout:focusPosition") ?? undefined;
+      start(focusPosition ? { text, focusPosition } : { text });
     }
   }, [router, start]);
 
@@ -285,17 +468,32 @@ export default function AnalyzePage() {
     }
   }, [status, analysisResult, cachedResult]);
 
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     sessionStorage.removeItem("jobscout:analyzeResult");
     setCachedResult(null);
     reset();
     startedRef.current = false;
     const text = sessionStorage.getItem("jobscout:jdText");
+    const focusPosition = sessionStorage.getItem("jobscout:focusPosition") ?? undefined;
     if (text) {
       startedRef.current = true;
-      start({ text });
+      start(focusPosition ? { text, focusPosition } : { text });
     }
-  };
+  }, [reset, start]);
+
+  // 파싱 실패 시 1회 자동 재시도 — Gemini mid-stream 끊김 대응
+  useEffect(() => {
+    if (
+      status === "done" &&
+      !analysisResult &&
+      fullText &&
+      !cachedResult &&
+      !autoRetried
+    ) {
+      setAutoRetried(true);
+      handleRetry();
+    }
+  }, [status, analysisResult, fullText, cachedResult, autoRetried, handleRetry]);
 
   /* ─── 유효 상태: 캐시 결과가 있으면 "done" 취급 ─── */
   const effectiveStatus = cachedResult ? "done" : status;
@@ -306,6 +504,86 @@ export default function AnalyzePage() {
   const etc = analysisResult?.skills.filter((s) => s.category === "etc") ?? [];
 
   /* ─── jdText 없을 때: 입력 폼 ─── */
+  if (!jdText && pendingCrawl) {
+    return (
+      <AppShell ribbonLeft={<>포지션 선택</>} ribbonRight={<>{pendingCrawl.positions.length}개 포지션 감지</>}>
+        <div className="max-w-4xl mx-auto space-y-6">
+          <FadeIn>
+            <div className="dot-matrix-texture p-8 border-2 border-primary/10">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="h-2 w-2 bg-secondary" />
+                <span className="text-xs text-secondary uppercase tracking-[0.2em] font-bold">
+                  다중 포지션 감지됨
+                </span>
+              </div>
+              <h1 className="font-heading text-4xl md:text-5xl text-primary font-black tracking-tighter leading-none mb-2">
+                {pendingCrawl.meta.title}
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                {pendingCrawl.meta.company} · 관심 포지션을 선택하면 해당 포지션만 집중 분석합니다.
+              </p>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.05}>
+            <ul className="space-y-2">
+              {pendingCrawl.positions.map((position, i) => (
+                <li key={`${position}-${i}`}>
+                  <button
+                    onClick={() => handlePositionSelect(position)}
+                    className="w-full flex items-center gap-4 p-5 bg-card hover:bg-secondary/5 border-l-4 border-transparent hover:border-secondary transition-all duration-75 text-left group"
+                  >
+                    <span className="font-heading italic font-black text-2xl text-secondary/60 tabular-nums shrink-0 min-w-[2.5rem]">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="flex-1 text-base text-foreground font-medium">{position}</span>
+                    <span className="text-xs uppercase tracking-widest text-muted-foreground group-hover:text-secondary transition-colors">
+                      선택 →
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </FadeIn>
+
+          <FadeIn delay={0.1}>
+            <div className="flex items-center justify-between gap-4 pt-4 border-t border-border/40">
+              <button
+                onClick={() => handlePositionSelect(null)}
+                className="text-sm text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4 transition-colors"
+              >
+                전체 포지션 한 번에 분석 (권장하지 않음)
+              </button>
+              <button
+                onClick={() => setPendingCrawl(null)}
+                className="text-xs uppercase tracking-widest text-muted-foreground hover:text-destructive transition-colors"
+              >
+                취소
+              </button>
+            </div>
+          </FadeIn>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // 쿼리/입력으로 크롤링이 시작된 상태 — 입력 폼 대신 단계별 진행 화면
+  if (!jdText && !pendingCrawl && crawlStatus === "loading") {
+    return (
+      <AppShell ribbonLeft={<>채용공고 분석</>} ribbonRight={<>STATUS: CRAWLING</>}>
+        <div className="max-w-6xl mx-auto">
+          <FadeIn>
+            <AnalysisProgress
+              inputMode="url"
+              deltaChars={0}
+              phase="crawling"
+            />
+          </FadeIn>
+        </div>
+      </AppShell>
+    );
+  }
+
   if (!jdText) {
     return (
       <AppShell ribbonLeft={<>채용공고 분석</>} ribbonRight={<>대기 중</>}>
@@ -328,13 +606,16 @@ export default function AnalyzePage() {
           </FadeIn>
 
           <FadeIn delay={0.05}>
-            <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as "url" | "text")}>
+            <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as "url" | "text" | "image")}>
               <TabsList className="bg-card p-0.5 flex mb-6 w-full">
                 <TabsTrigger value="url" className="flex-1 py-4 data-active:bg-primary data-active:text-primary-foreground">
                   URL 입력
                 </TabsTrigger>
                 <TabsTrigger value="text" className="flex-1 py-4 data-active:bg-primary data-active:text-primary-foreground">
                   텍스트 직접 입력
+                </TabsTrigger>
+                <TabsTrigger value="image" className="flex-1 py-4 data-active:bg-primary data-active:text-primary-foreground">
+                  이미지 업로드
                 </TabsTrigger>
               </TabsList>
 
@@ -363,13 +644,60 @@ export default function AnalyzePage() {
                   </div>
                 )}
                 <button
-                  onClick={handleUrlSubmit}
+                  onClick={() => handleUrlSubmit()}
                   disabled={!urlInput.trim() || crawlStatus === "loading"}
                   className="w-full bg-secondary text-secondary-foreground py-5 text-lg uppercase tracking-[0.2em] font-medium hover:bg-secondary/90 transition-colors flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {crawlStatus === "loading" ? "가져오는 중..." : "분석 시작"}
                   <span className="group-hover:translate-x-2 transition-transform">→</span>
                 </button>
+              </TabsContent>
+
+              <TabsContent value="image" className="space-y-4">
+                <FileDropZone
+                  accept="image/*"
+                  maxSizeMB={10}
+                  multiple
+                  label="이미지 드래그 & 드롭 또는 클릭"
+                  description="PNG · JPEG · WEBP / 최대 5장 / 각 10MB"
+                  onFile={addImages}
+                  disabled={imageFiles.length >= 5}
+                />
+                {imageFiles.length > 0 && (
+                  <ul className="space-y-2 border-l-2 border-primary/20 pl-4">
+                    {imageFiles.map((f, i) => (
+                      <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="flex-1 truncate">
+                          <span className="text-xs text-muted-foreground tracking-widest mr-2">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          {f.name}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {(f.size / 1024).toFixed(0)}KB
+                          </span>
+                        </span>
+                        <button
+                          onClick={() => removeImage(i)}
+                          className="text-xs uppercase tracking-widest text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          제거
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-muted-foreground">
+                    {imageFiles.length}/5장
+                  </span>
+                  <button
+                    onClick={handleImageSubmit}
+                    disabled={imageFiles.length === 0}
+                    className="bg-secondary text-secondary-foreground px-8 py-3 text-sm uppercase tracking-widest font-medium hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    분석 시작
+                  </button>
+                </div>
               </TabsContent>
 
               <TabsContent value="text" className="space-y-4">
@@ -414,16 +742,12 @@ export default function AnalyzePage() {
         {/* ───────── 스트리밍 중: 스켈레톤 ───────── */}
         {(effectiveStatus === "idle" || effectiveStatus === "streaming") && (
           <FadeIn>
-            <div className="flex items-center gap-3 mb-8">
-              <div className="h-2.5 w-2.5 bg-secondary animate-pulse" />
-              <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">
-                {crawlMeta?.title
-                  ? `${crawlMeta.title} 분석 중`
-                  : "채용공고 분석 중"}
-                ...
-              </span>
-            </div>
-            <AnalysisSkeleton />
+            <AnalysisProgress
+              inputMode={inputMode}
+              deltaChars={fullText.length}
+              crawlTitle={crawlMeta?.title}
+              phase="analyzing"
+            />
           </FadeIn>
         )}
 
@@ -788,16 +1112,24 @@ export default function AnalyzePage() {
           </>
         )}
 
-        {/* 파싱 실패 fallback */}
-        {effectiveStatus === "done" && !analysisResult && fullText && (
+        {/* 불완전 응답 — 자동 재시도도 실패한 경우에만 노출 */}
+        {effectiveStatus === "done" && !analysisResult && fullText && autoRetried && (
           <FadeIn>
-            <div className="stepped-pixel-border bg-card p-6">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-secondary font-bold mb-3">
-                원문 출력
+            <div className="border-l-4 border-destructive bg-card p-6 space-y-3">
+              <p className="text-sm text-destructive font-medium">
+                AI 응답이 두 번 연속 중간에 끊겼습니다.
               </p>
-              <pre className="whitespace-pre-wrap text-sm bg-muted p-4 dot-matrix-texture">
-                {fullText}
-              </pre>
+              <p className="text-xs text-muted-foreground">
+                Gemini 서버가 매우 혼잡한 상태일 수 있습니다. 잠시 후 다시 시도하거나, 이미지 업로드로 분석해보세요.
+              </p>
+              <div className="flex gap-3">
+                <Button variant="outline" size="sm" onClick={handleRetry}>
+                  다시 시도
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleReset}>
+                  새 공고 분석
+                </Button>
+              </div>
             </div>
           </FadeIn>
         )}

@@ -110,6 +110,7 @@ export type CrawlRequest = z.infer<typeof CrawlRequestSchema>;
 
 export const AnalyzeRequestSchema = z.object({
   text: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  focusPosition: z.string().optional(),
 });
 export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
 

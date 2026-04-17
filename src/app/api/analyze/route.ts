@@ -26,15 +26,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const { text } = parsed.data;
-  const messages = buildAnalyzeMessages(text);
+  const { text, focusPosition } = parsed.data;
+  const messages = buildAnalyzeMessages(text, focusPosition);
 
   const generator = stream(apiKey, messages, {
     model: "gemini-2.5-flash",
     system: ANALYZE_SYSTEM_PROMPT,
-    temperature: 0.1,
+    temperature: 0,
     maxTokens: 16384,
     signal: req.signal,
+    bufferedFallback: true,
   });
 
   const sseStream = createSSEStream(generator, req.signal);

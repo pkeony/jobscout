@@ -1,5 +1,15 @@
 import * as cheerio from "cheerio";
 import type { CrawlResult } from "@/types";
+import {
+  normalizeSaraminUrl,
+  parseSaraminHtml,
+  type SaraminParseResult,
+} from "./parsers/saramin";
+import {
+  normalizeJobkoreaUrl,
+  parseJobkoreaHtml,
+  type JobkoreaParseResult,
+} from "./parsers/jobkorea";
 
 const MAX_BODY_SIZE = 1_000_000; // 1MB
 const FETCH_TIMEOUT_MS = 10_000;
@@ -62,6 +72,11 @@ async function fetchHtml(url: string): Promise<string> {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     redirect: "follow",
   });
+
+  // 리디렉트 최종 호스트 재검증 — 공개 URL이 내부망·사설 IP로 튕겨지는 SSRF 경로 차단
+  if (res.url && isBlockedUrl(res.url)) {
+    throw new CrawlError("리디렉트가 허용되지 않은 호스트로 이동", 403);
+  }
 
   if (!res.ok) {
     throw new CrawlError(
@@ -285,15 +300,67 @@ function cleanText(text: string): string {
 
 export { CrawlError };
 
-export async function crawlJobDescription(url: string): Promise<CrawlResult> {
+export interface CrawlJobResult extends CrawlResult {
+  imageUrls?: string[];
+  needsVisionOcr?: boolean;
+}
+
+export async function crawlJobDescription(url: string): Promise<CrawlJobResult> {
+  // ─── 사람인 전용 ─────────────────────────────────
+  const saraminUrl = normalizeSaraminUrl(url);
+  if (saraminUrl) {
+    const html = await fetchHtml(saraminUrl);
+    const parsed: SaraminParseResult | null = parseSaraminHtml(html, saraminUrl);
+    if (parsed) {
+      if (parsed.result.text.length < 50 && parsed.imageUrls.length === 0) {
+        throw new CrawlError(
+          "채용공고 텍스트를 충분히 추출하지 못했습니다. 텍스트를 직접 붙여넣어 주세요.",
+          422,
+        );
+      }
+      return {
+        ...parsed.result,
+        imageUrls: parsed.imageUrls,
+        needsVisionOcr: parsed.needsVisionOcr,
+      };
+    }
+  }
+
+  // ─── 잡코리아 전용: 메인 + iframe 조합 ──────────
+  const jobkoreaInfo = normalizeJobkoreaUrl(url);
+  if (jobkoreaInfo) {
+    const [mainHtml, iframeHtml] = await Promise.all([
+      fetchHtml(url),
+      fetchHtml(jobkoreaInfo.contentUrl),
+    ]);
+    const parsed: JobkoreaParseResult | null = parseJobkoreaHtml(
+      mainHtml,
+      iframeHtml,
+      url,
+      jobkoreaInfo.contentUrl,
+    );
+    if (parsed) {
+      if (parsed.result.text.length < 50 && parsed.imageUrls.length === 0) {
+        throw new CrawlError(
+          "채용공고 텍스트를 충분히 추출하지 못했습니다. 텍스트를 직접 붙여넣어 주세요.",
+          422,
+        );
+      }
+      return {
+        ...parsed.result,
+        imageUrls: parsed.imageUrls,
+        needsVisionOcr: parsed.needsVisionOcr,
+      };
+    }
+  }
+
+  // ─── 원티드 / generic ──────────────────────────
   const html = await fetchHtml(url);
   const $ = cheerio.load(html);
 
-  // 사이트별 전용 파서 시도
-  const siteResult = tryWantedParser($, url);
-  if (siteResult) return siteResult;
+  const wanted = tryWantedParser($, url);
+  if (wanted) return wanted;
 
-  // Generic fallback
   const title = extractTitle($);
   const company = extractCompany($);
   const text = extractBody($);

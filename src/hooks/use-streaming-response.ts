@@ -58,7 +58,7 @@ export function useStreamingResponse<T extends { type: string }>(
   const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(
-    async (body: Record<string, unknown> | FormData) => {
+    async (body: Record<string, unknown> | FormData, urlOverride?: string) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -66,9 +66,10 @@ export function useStreamingResponse<T extends { type: string }>(
       dispatch({ type: "START" });
 
       const isFormData = body instanceof FormData;
+      const endpoint = urlOverride ?? url;
 
       try {
-        const res = await fetch(url, {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: isFormData ? undefined : { "Content-Type": "application/json" },
           body: isFormData ? body : JSON.stringify(body),

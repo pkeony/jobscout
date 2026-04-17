@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+// 대시보드는 크롤링을 직접 수행하지 않고 /analyze 페이지로 URL만 전달.
+// 긴 크롤/분석은 /analyze에서 진행 상황을 보여주는 게 UX에 맞음.
 import { AppShell } from "@/components/app-shell";
 import {
   Card,
@@ -98,59 +100,18 @@ const TIPS = [
 export default function DashboardPage() {
   const router = useRouter();
   const [url, setUrl] = useState("");
-  const [crawlStatus, setCrawlStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [crawlError, setCrawlError] = useState<string | null>(null);
 
-  const goToAnalyze = useCallback(
-    (text: string, meta?: { title: string; company: string; url: string }) => {
-      sessionStorage.removeItem("jobscout:analyzeResult");
-      sessionStorage.removeItem("jobscout:coverLetterResult");
-      sessionStorage.removeItem("jobscout:interviewResult");
-      sessionStorage.setItem("jobscout:jdText", text);
-      if (meta) {
-        sessionStorage.setItem("jobscout:crawlMeta", JSON.stringify(meta));
-      }
-      router.push("/analyze");
-    },
-    [router],
-  );
-
-  const handleUrlSubmit = useCallback(async () => {
+  const handleUrlSubmit = useCallback(() => {
     if (!url.trim()) return;
-
-    setCrawlStatus("loading");
-    setCrawlError(null);
-
-    try {
-      const res = await fetch("/api/crawl", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error: string };
-        throw new Error(data.error);
-      }
-
-      const data = (await res.json()) as {
-        title: string;
-        company: string;
-        text: string;
-        url: string;
-      };
-      goToAnalyze(data.text, {
-        title: data.title,
-        company: data.company,
-        url: data.url,
-      });
-    } catch (err) {
-      setCrawlStatus("error");
-      setCrawlError(
-        err instanceof Error ? err.message : "크롤링 중 오류가 발생했습니다",
-      );
-    }
-  }, [url, goToAnalyze]);
+    // 이전 분석 캐시 정리 후 analyze 페이지로 URL을 실어서 이동
+    sessionStorage.removeItem("jobscout:analyzeResult");
+    sessionStorage.removeItem("jobscout:coverLetterResult");
+    sessionStorage.removeItem("jobscout:interviewResult");
+    sessionStorage.removeItem("jobscout:jdText");
+    sessionStorage.removeItem("jobscout:crawlMeta");
+    sessionStorage.removeItem("jobscout:focusPosition");
+    router.push(`/analyze?url=${encodeURIComponent(url.trim())}`);
+  }, [url, router]);
 
   const today = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
@@ -196,19 +157,15 @@ export default function DashboardPage() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleUrlSubmit()}
-                disabled={crawlStatus === "loading"}
               />
               <button
                 onClick={handleUrlSubmit}
-                disabled={!url.trim() || crawlStatus === "loading"}
+                disabled={!url.trim()}
                 className="bg-secondary text-secondary-foreground px-8 py-3 text-sm uppercase tracking-widest font-bold hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
-                {crawlStatus === "loading" ? "분석 중..." : "분석 시작"}
+                분석 시작 →
               </button>
             </div>
-            {crawlStatus === "error" && crawlError && (
-              <p className="mt-3 text-sm text-red-300">{crawlError}</p>
-            )}
           </div>
         </FadeIn>
 
