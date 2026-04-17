@@ -12,6 +12,7 @@ interface FileDropZoneProps {
   onFile: (file: File) => void;
   disabled?: boolean;
   isLoading?: boolean;
+  multiple?: boolean;
 }
 
 const ACCEPT_MAP: Record<string, string> = {
@@ -19,13 +20,16 @@ const ACCEPT_MAP: Record<string, string> = {
   ".docx":
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".txt": "text/plain",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
 };
 
 function isAcceptedType(file: File, accept: string): boolean {
-  const allowed = accept
-    .split(",")
-    .map((ext) => ACCEPT_MAP[ext.trim()])
-    .filter(Boolean);
+  const tokens = accept.split(",").map((t) => t.trim());
+  if (tokens.includes("image/*") && file.type.startsWith("image/")) return true;
+  const allowed = tokens.map((t) => ACCEPT_MAP[t]).filter(Boolean);
   return allowed.includes(file.type);
 }
 
@@ -37,6 +41,7 @@ export function FileDropZone({
   onFile,
   disabled = false,
   isLoading = false,
+  multiple = false,
 }: FileDropZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,10 +71,15 @@ export function FileDropZone({
       setIsDragOver(false);
       if (disabled || isLoading) return;
 
-      const file = e.dataTransfer.files[0];
-      if (file) validateAndEmit(file);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length === 0) return;
+      if (multiple) {
+        files.forEach((f) => validateAndEmit(f));
+      } else {
+        validateAndEmit(files[0]);
+      }
     },
-    [disabled, isLoading, validateAndEmit],
+    [disabled, isLoading, multiple, validateAndEmit],
   );
 
   const handleDragOver = useCallback(
@@ -91,11 +101,15 @@ export function FileDropZone({
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) validateAndEmit(file);
+      const files = Array.from(e.target.files ?? []);
+      if (multiple) {
+        files.forEach((f) => validateAndEmit(f));
+      } else if (files[0]) {
+        validateAndEmit(files[0]);
+      }
       e.target.value = "";
     },
-    [validateAndEmit],
+    [multiple, validateAndEmit],
   );
 
   return (
@@ -131,6 +145,7 @@ export function FileDropZone({
           ref={inputRef}
           type="file"
           accept={accept}
+          multiple={multiple}
           onChange={handleInputChange}
           className="hidden"
           disabled={disabled || isLoading}
