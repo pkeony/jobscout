@@ -60,8 +60,9 @@ export async function POST(req: Request) {
   for await (const event of stream(apiKey, messages, {
     model: "gemini-2.5-flash",
     system: RESUME_PARSE_SYSTEM_PROMPT,
-    temperature: 0.1,
+    temperature: 0,
     maxTokens: 2048,
+    bufferedFallback: true,
   })) {
     if (event.type === "delta") fullText += event.text;
   }

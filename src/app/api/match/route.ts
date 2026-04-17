@@ -29,9 +29,10 @@ export async function POST(req: Request) {
   const generator = stream(apiKey, messages, {
     model: "gemini-2.5-flash",
     system: MATCH_SYSTEM_PROMPT,
-    temperature: 0.1,
+    temperature: 0,
     maxTokens: 4096,
     signal: req.signal,
+    bufferedFallback: true,
   });
 
   const sseStream = createSSEStream(generator, req.signal);
