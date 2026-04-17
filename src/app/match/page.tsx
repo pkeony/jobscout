@@ -6,23 +6,18 @@ import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractMatchJson } from "@/lib/prompts/match";
 import type { MatchResult, SkillMatch, UserProfile } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+import { cn, friendlyError } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { FadeIn, StaggerList, StaggerItem } from "@/components/motion";
+import { FileDropZone } from "@/components/file-drop-zone";
+import { AppShell } from "@/components/app-shell";
+import { PixelProgressRing } from "@/components/pixel-progress-ring";
 
-// ─── 프로필 입력 폼 ──────────────────────────────
+// ─── 프로필 입력 폼 ──────────────────────────────────
 
 function ProfileForm({
   initialProfile,
@@ -37,6 +32,39 @@ function ProfileForm({
   const [introduction, setIntroduction] = useState(
     initialProfile.introduction ?? "",
   );
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+
+  const handleResumeFile = useCallback(async (file: File) => {
+    setResumeLoading(true);
+    setResumeError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/parse-resume", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const body = await res.json();
+        setResumeError(body.error ?? "이력서 파싱에 실패했습니다");
+        return;
+      }
+
+      const { profile } = (await res.json()) as { profile: UserProfile };
+      setSkills(profile.skills.join(", "));
+      setExperience(profile.experience);
+      setEducation(profile.education ?? "");
+      setIntroduction(profile.introduction ?? "");
+    } catch {
+      setResumeError("이력서 파싱 중 오류가 발생했습니다");
+    } finally {
+      setResumeLoading(false);
+    }
+  }, []);
 
   const handleSubmit = () => {
     const profile: UserProfile = {
@@ -54,188 +82,189 @@ function ProfileForm({
   const isValid = skills.trim().length > 0 && experience.trim().length > 0;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">내 프로필</CardTitle>
-        <CardDescription>
-          보유 스킬과 경력을 입력하세요. 프로필은 브라우저에 저장됩니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            보유 스킬 <span className="text-destructive">*</span>
-          </label>
-          <Input
-            placeholder="React, TypeScript, Node.js (쉼표로 구분)"
-            value={skills}
-            onChange={(e) => setSkills(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">
-            쉼표로 구분하여 입력하세요
-          </p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t-4 border-foreground">
+      {/* 좌측: 파일 업로드 */}
+      <div className="p-8 bg-muted/30 border-r-0 md:border-r-2 border-border">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="font-heading text-2xl font-bold italic">
+              이력서 업로드
+            </h2>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              자동 프로필 추출
+            </span>
+          </div>
         </div>
+        <FileDropZone
+          accept=".pdf,.docx,.txt"
+          label={resumeLoading ? "이력서 분석 중..." : "이력서를 드래그하세요"}
+          description="PDF, DOCX, TXT (5MB 이하) — 자동으로 프로필을 채워드립니다"
+          onFile={handleResumeFile}
+          isLoading={resumeLoading}
+        />
+        {resumeError && (
+          <p className="text-sm text-destructive mt-3">{resumeError}</p>
+        )}
+      </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            경력 <span className="text-destructive">*</span>
-          </label>
-          <Textarea
-            placeholder="프론트엔드 개발자 2년, React 기반 SPA 개발 경험..."
-            value={experience}
-            onChange={(e) => setExperience(e.target.value)}
-            rows={3}
-          />
+      {/* 우측: 수동 입력 */}
+      <div className="p-8 bg-muted relative">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="font-heading text-2xl font-bold italic">
+              직접 입력
+            </h2>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              프로필 정보 기입
+            </span>
+          </div>
         </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-foreground">
+              보유 스킬 <span className="text-destructive">*</span>
+            </label>
+            <Input
+              placeholder="React, TypeScript, Node.js"
+              value={skills}
+              onChange={(e) => setSkills(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">쉼표로 구분</p>
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">학력</label>
-          <Input
-            placeholder="컴퓨터공학 학사 (선택)"
-            value={education}
-            onChange={(e) => setEducation(e.target.value)}
-          />
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-foreground">
+              경력 <span className="text-destructive">*</span>
+            </label>
+            <Textarea
+              placeholder="프론트엔드 개발자 2년..."
+              value={experience}
+              onChange={(e) => setExperience(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-foreground">
+              학력
+            </label>
+            <Input
+              placeholder="컴퓨터공학 학사 (선택)"
+              value={education}
+              onChange={(e) => setEducation(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-foreground">
+              자기소개
+            </label>
+            <Textarea
+              placeholder="간단한 자기소개 (선택)"
+              value={introduction}
+              onChange={(e) => setIntroduction(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <Button
+            onClick={handleSubmit}
+            disabled={!isValid}
+            className="w-full bg-secondary text-secondary-foreground px-8 py-5 text-sm uppercase tracking-[0.2em] font-bold hover:bg-foreground hover:text-background transition-colors duration-75 h-auto"
+          >
+            매칭 분석 시작
+            <span className="ml-2">→</span>
+          </Button>
         </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">자기소개</label>
-          <Textarea
-            placeholder="간단한 자기소개 (선택)"
-            value={introduction}
-            onChange={(e) => setIntroduction(e.target.value)}
-            rows={2}
-          />
+        {/* 워터마크 */}
+        <div className="absolute bottom-6 right-6 opacity-[0.03] select-none pointer-events-none">
+          <span className="font-heading italic font-black text-7xl">MATCH</span>
         </div>
-
-        <Button onClick={handleSubmit} disabled={!isValid} className="w-full">
-          매칭 분석하기
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── 스킬 매칭 뱃지 ──────────────────────────────
-
-function SkillMatchBadge({ match }: { match: SkillMatch }) {
-  const variant =
-    match.status === "match"
-      ? "default"
-      : match.status === "partial"
-        ? "secondary"
-        : "destructive";
-
-  const icon =
-    match.status === "match"
-      ? "✓"
-      : match.status === "partial"
-        ? "△"
-        : "✕";
-
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <Badge variant={variant} className="w-6 justify-center text-xs">
-        {icon}
-      </Badge>
-      <span className="font-medium">{match.name}</span>
-      <span className="text-muted-foreground">— {match.comment}</span>
+      </div>
     </div>
   );
 }
 
-// ─── 매칭 결과 뷰 ────────────────────────────────
+// ─── 스킬 매칭 아이템 ───────────────────────────────
 
-function MatchResultView({ result }: { result: MatchResult }) {
-  const scoreColor =
-    result.score >= 70
-      ? "text-green-600 dark:text-green-400"
-      : result.score >= 40
-        ? "text-yellow-600 dark:text-yellow-400"
-        : "text-red-600 dark:text-red-400";
+function SkillMatchItem({ match }: { match: SkillMatch }) {
+  const icon =
+    match.status === "match" ? "✓" : match.status === "partial" ? "△" : "✕";
 
   return (
-    <div className="space-y-6">
-      {/* 점수 */}
-      <FadeIn>
-        <Card>
-          <CardContent className="pt-6 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">매칭 점수</p>
-            <p className={`text-6xl font-bold tabular-nums ${scoreColor}`}>
-              {result.score}
-            </p>
-            <Progress value={result.score} className="h-2 max-w-xs mx-auto" />
-            <p className="text-sm leading-relaxed max-w-md mx-auto">
-              {result.summary}
-            </p>
-          </CardContent>
-        </Card>
-      </FadeIn>
-
-      {/* 스킬 매칭 상세 */}
-      <FadeIn delay={0.1}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">스킬 매칭 상세</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StaggerList className="space-y-2">
-              {result.skillMatches.map((m) => (
-                <StaggerItem key={m.name}>
-                  <SkillMatchBadge match={m} />
-                </StaggerItem>
-              ))}
-            </StaggerList>
-          </CardContent>
-        </Card>
-      </FadeIn>
-
-      {/* 강점 */}
-      {result.strengths.length > 0 && (
-        <FadeIn delay={0.2}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">강점</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                {result.strengths.map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </FadeIn>
+    <div
+      className={cn(
+        "border-l-4 p-4 bg-card text-sm",
+        match.status === "match" && "border-accent",
+        match.status === "partial" && "border-secondary",
+        match.status === "gap" && "border-destructive",
       )}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <span
+          className={cn(
+            "font-mono text-xs font-bold",
+            match.status === "match" && "text-accent",
+            match.status === "partial" && "text-secondary",
+            match.status === "gap" && "text-destructive",
+          )}
+        >
+          {icon}
+        </span>
+        <span className="font-bold">{match.name}</span>
+      </div>
+      <p className="text-muted-foreground text-xs ml-5">{match.comment}</p>
+    </div>
+  );
+}
 
-      {/* 부족한 점 */}
-      {result.gaps.length > 0 && (
-        <FadeIn delay={0.3}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">보완 필요</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                {result.gaps.map((g, i) => (
-                  <li key={i}>{g}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </FadeIn>
-      )}
+// ─── 스트리밍 스켈레톤 ──────────────────────────────
 
-      {/* 조언 */}
-      <FadeIn delay={0.4}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">지원 전략</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed">{result.advice}</p>
-          </CardContent>
-        </Card>
-      </FadeIn>
+function MatchSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse">
+      <div className="flex flex-col md:flex-row justify-between items-end gap-8">
+        <div className="w-full md:w-2/3">
+          <Skeleton className="h-4 w-32 mb-4" />
+          <Skeleton className="h-12 w-[60%] mb-3" />
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-3/4 mt-2" />
+        </div>
+        <div className="w-48 h-48 bg-muted border-4 border-foreground/20" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t-4 border-foreground/20">
+        <div className="p-8 bg-muted/30 space-y-4">
+          <Skeleton className="h-6 w-24" />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="p-4 bg-card border-l-4 border-border space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ))}
+        </div>
+        <div className="p-8 bg-muted space-y-4">
+          <Skeleton className="h-6 w-24" />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="p-4 bg-card/60 border-l-4 border-foreground/20 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-foreground p-1">
+        <div className="px-4 py-2"><Skeleton className="h-3 w-28" /></div>
+        <div className="bg-card p-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="border-l-4 border-border p-4 space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -250,7 +279,6 @@ export default function MatchPage() {
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/match");
 
-  // ─── sessionStorage에서 JD 복원 + localStorage 프로필 복원
   useEffect(() => {
     const text = sessionStorage.getItem("jobscout:jdText");
     if (!text) {
@@ -265,7 +293,6 @@ export default function MatchPage() {
     }
   }, [router]);
 
-  // ─── 프로필 제출 → 매칭 시작
   const handleProfileSubmit = useCallback(
     (submittedProfile: UserProfile) => {
       localStorage.setItem(
@@ -281,7 +308,6 @@ export default function MatchPage() {
     [jdText, start],
   );
 
-  // ─── JSON 파싱
   const matchResult = useMemo<MatchResult | null>(() => {
     if (status !== "done" || !fullText) return null;
     try {
@@ -291,7 +317,6 @@ export default function MatchPage() {
     }
   }, [status, fullText]);
 
-  // ─── 다시 분석
   const handleRetry = () => {
     reset();
     setProfile(null);
@@ -306,24 +331,25 @@ export default function MatchPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center px-4 py-8 sm:py-12">
-      <div className="w-full max-w-2xl space-y-6">
-        {/* 헤더 */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/analyze")}
-          >
-            ← 분석 결과
-          </Button>
-          <Separator orientation="vertical" className="h-6" />
-          <h1 className="text-lg font-semibold">프로필 매칭</h1>
-        </div>
-
-        {/* 프로필 미입력 → 폼 */}
+    <AppShell
+      ribbonLeft={<>프로필 매칭</>}
+      ribbonRight={<>STATUS: {status.toUpperCase()}</>}
+    >
+      <div className="max-w-6xl mx-auto space-y-0">
+        {/* ───────── 프로필 입력 (idle) ───────── */}
         {status === "idle" && (
           <FadeIn>
+            <div className="mb-12">
+              <span className="inline-block bg-secondary text-secondary-foreground px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] font-bold mb-4">
+                적합도 분석
+              </span>
+              <h1 className="font-heading text-5xl md:text-7xl font-black text-foreground tracking-tight leading-none mb-4">
+                프로필 매칭
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
+                이력서 또는 프로필 정보를 입력하면 채용공고와의 적합도를 분석합니다.
+              </p>
+            </div>
             <ProfileForm
               initialProfile={
                 profile ?? {
@@ -338,66 +364,194 @@ export default function MatchPage() {
           </FadeIn>
         )}
 
-        {/* 스트리밍 중 */}
+        {/* ───────── 스트리밍 중 ───────── */}
         {status === "streaming" && (
           <FadeIn>
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  <span className="text-sm text-muted-foreground">
-                    프로필 매칭 분석 중...
-                  </span>
-                </div>
-                <Progress value={null} className="h-1" />
-                <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground rounded-md bg-muted p-3">
-                  {fullText || "응답 대기 중..."}
-                </pre>
-              </CardContent>
-            </Card>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="h-2.5 w-2.5 bg-secondary animate-pulse" />
+              <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">
+                프로필 매칭 분석 중...
+              </span>
+            </div>
+            <MatchSkeleton />
           </FadeIn>
         )}
 
-        {/* 에러 */}
+        {/* ───────── 에러 ───────── */}
         {status === "error" && (
           <FadeIn>
-            <Card>
-              <CardContent className="pt-6 space-y-3">
-                <p className="text-sm text-destructive">
-                  {error ?? "매칭 분석 중 오류가 발생했습니다"}
-                </p>
-                <Button variant="outline" size="sm" onClick={handleRetry}>
-                  다시 시도
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="border-l-4 border-destructive bg-card p-8 space-y-4">
+              <h3 className="font-heading text-xl font-bold text-destructive">
+                매칭 분석에 실패했습니다
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {friendlyError(error)}
+              </p>
+              <Button variant="outline" size="sm" onClick={handleRetry}>
+                다시 시도
+              </Button>
+            </div>
           </FadeIn>
         )}
 
-        {/* 결과 */}
+        {/* ───────── 매칭 결과 ───────── */}
         {status === "done" && matchResult && (
-          <MatchResultView result={matchResult} />
+          <>
+            {/* 히어로 헤더 */}
+            <FadeIn>
+              <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-12">
+                <div className="w-full md:w-2/3">
+                  <span className="inline-block bg-secondary text-secondary-foreground px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] font-bold mb-4">
+                    매칭 결과
+                  </span>
+                  <h1 className="font-heading text-5xl md:text-7xl font-black text-foreground tracking-tight leading-none mb-4">
+                    적합도 분석
+                  </h1>
+                  <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
+                    {matchResult.summary}
+                  </p>
+                </div>
+                <PixelProgressRing score={matchResult.score} className="w-48 h-48" />
+              </div>
+            </FadeIn>
+
+            {/* 좌우 대비: 강점 vs 보완 */}
+            <FadeIn delay={0.03}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-0 mb-12 border-t-4 border-foreground">
+                {/* 강점 */}
+                <div className="p-8 border-r-0 md:border-r-2 border-border bg-muted/30">
+                  <div className="mb-8">
+                    <h2 className="font-heading text-2xl font-bold italic">강점</h2>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                      보유 역량 매칭
+                    </span>
+                  </div>
+                  <div className="space-y-4">
+                    {matchResult.strengths.map((s, i) => (
+                      <div key={i} className="p-4 bg-card border-l-4 border-accent">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[10px] font-bold uppercase text-accent">
+                            강점 {String(i + 1).padStart(2, "0")}
+                          </span>
+                        </div>
+                        <p className="text-sm leading-relaxed">{s}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* 보완 필요 */}
+                <div className="p-8 bg-muted relative">
+                  <div className="mb-8">
+                    <h2 className="font-heading text-2xl font-bold italic">보완 필요</h2>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                      갭 분석
+                    </span>
+                  </div>
+                  <div className="space-y-4">
+                    {matchResult.gaps.map((g, i) => (
+                      <div key={i} className="p-4 bg-card/60 border-l-4 border-destructive">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[10px] font-bold uppercase text-destructive">
+                            갭 {String(i + 1).padStart(2, "0")}
+                          </span>
+                        </div>
+                        <p className="text-sm leading-relaxed">{g}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="absolute bottom-8 right-8 opacity-[0.03] select-none pointer-events-none">
+                    <span className="font-heading italic font-black text-8xl">GAP</span>
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            {/* 스킬별 상세 — 다크 프레임 */}
+            <FadeIn delay={0.06}>
+              <div className="bg-foreground p-1 mb-12">
+                <div className="bg-foreground px-4 py-2 border-b border-background/20 flex justify-between items-center">
+                  <span className="text-[10px] uppercase tracking-widest flex items-center gap-2 text-background/80">
+                    <span className="w-2 h-2 bg-secondary" />
+                    스킬별 상세 분석
+                  </span>
+                  <div className="flex gap-2">
+                    <span className="w-3 h-3 bg-background/20" />
+                    <span className="w-3 h-3 bg-background/20" />
+                    <span className="w-3 h-3 bg-background/20" />
+                  </div>
+                </div>
+                <div className="bg-card p-8 dot-matrix-texture">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <StaggerList className="contents">
+                      {matchResult.skillMatches.map((m) => (
+                        <StaggerItem key={m.name}>
+                          <SkillMatchItem match={m} />
+                        </StaggerItem>
+                      ))}
+                    </StaggerList>
+                  </div>
+
+                  {/* 지원 전략 */}
+                  <div className="mt-8 pt-8 border-t border-border/30">
+                    <h4 className="font-heading font-bold text-lg border-b-2 border-secondary pb-1 inline-block mb-4">
+                      지원 전략
+                    </h4>
+                    <p className="text-sm leading-relaxed max-w-3xl">
+                      {matchResult.advice}
+                    </p>
+                  </div>
+
+                  <div className="mt-12 flex justify-center">
+                    <Button
+                      onClick={() => router.push("/cover-letter")}
+                      className="bg-secondary text-secondary-foreground px-10 py-6 text-sm uppercase tracking-[0.3em] font-bold hover:bg-foreground hover:text-background transition-colors duration-75 h-auto"
+                    >
+                      자소서 생성하기
+                      <span className="ml-3">→</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            {/* 하단 액션 카드 */}
+            <FadeIn delay={0.09}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => router.push("/cover-letter")}
+                  className="p-6 bg-muted border-2 border-foreground/10 hover:border-secondary text-left transition-all duration-75 hover:-translate-y-0.5"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-secondary">01</span>
+                  <h4 className="font-heading text-lg font-bold mt-2 mb-1">자소서 생성</h4>
+                  <p className="text-xs text-muted-foreground">채용공고 + 프로필 기반 맞춤형 자기소개서를 작성합니다.</p>
+                </button>
+                <button
+                  onClick={() => router.push("/interview")}
+                  className="p-6 bg-muted border-2 border-foreground/10 hover:border-secondary text-left transition-all duration-75 hover:-translate-y-0.5"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-secondary">02</span>
+                  <h4 className="font-heading text-lg font-bold mt-2 mb-1">면접 예상질문</h4>
+                  <p className="text-xs text-muted-foreground">채용공고 기반 면접 예상 질문과 모범 답안을 생성합니다.</p>
+                </button>
+              </div>
+            </FadeIn>
+          </>
         )}
 
         {/* 파싱 실패 fallback */}
         {status === "done" && !matchResult && fullText && (
           <FadeIn>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">매칭 결과 (원문)</CardTitle>
-                <CardDescription>
-                  구조화된 형태로 파싱하지 못했습니다
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <pre className="whitespace-pre-wrap text-sm rounded-md bg-muted p-4">
-                  {fullText}
-                </pre>
-              </CardContent>
-            </Card>
+            <div className="stepped-pixel-border bg-card p-6">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-secondary font-bold mb-3">
+                원문 출력
+              </p>
+              <pre className="whitespace-pre-wrap text-sm bg-muted p-4 dot-matrix-texture">
+                {fullText}
+              </pre>
+            </div>
           </FadeIn>
         )}
       </div>
-    </main>
+    </AppShell>
   );
 }

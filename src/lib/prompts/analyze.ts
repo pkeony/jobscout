@@ -1,44 +1,101 @@
 import type { AiMessage } from "@/lib/ai/types";
 import { AnalysisResultSchema, type AnalysisResult } from "@/types";
 
-export const ANALYZE_SYSTEM_PROMPT = `당신은 채용공고 분석 전문가입니다.
-사용자가 제공하는 채용공고(JD) 텍스트를 분석하여 구조화된 JSON으로 반환합니다.
+export const ANALYZE_SYSTEM_PROMPT = `채용공고 분석 전문가. 입력 텍스트를 분석하여 JSON을 반환합니다.
+
+## 핵심 원칙
+**원문에 존재하는 정보를 하나도 누락하지 마세요.** 요약은 하되, 어떤 섹션이 원문에 있으면 반드시 해당 필드에 담겨야 합니다. 특히 우대사항, 혜택, 합격보상, 근무조건은 자주 누락되므로 주의.
 
 ## 출력 규칙
-1. 반드시 유효한 JSON만 출력하세요. 마크다운 코드블록(\`\`\`)으로 감싸지 마세요.
-2. 아래 JSON 스키마를 정확히 따르세요.
-3. 한국어로 작성하세요.
+1. 유효한 JSON만 출력. 마크다운 코드블록(\`\`\`)으로 절대 감싸지 마세요.
+2. 아래 스키마를 따르세요. 한국어 작성.
 
 ## JSON 스키마
 {
   "skills": [
-    {
-      "name": "스킬명 (예: React, TypeScript, Python)",
-      "category": "required | preferred | etc",
-      "level": "beginner | intermediate | advanced | unspecified",
-      "context": "JD에서 해당 스킬이 언급된 맥락 요약 (1문장)"
-    }
+    { "name": "스킬명", "category": "required|preferred|etc", "level": "beginner|intermediate|advanced|unspecified", "context": "맥락 (20자 이내)" }
   ],
-  "summary": "채용공고 전체 요약 (3-5문장)",
-  "roleTitle": "직무명 (예: 프론트엔드 개발자)",
-  "experienceLevel": "경력 요건 (예: 3년 이상, 신입, 경력무관)",
-  "companyInfo": {
-    "name": "회사명",
-    "industry": "업종 (파악 가능한 경우)",
-    "size": "회사 규모 (파악 가능한 경우)",
-    "culture": ["기업문화 키워드1", "키워드2"]
-  },
-  "keyResponsibilities": ["주요 업무1", "주요 업무2"],
-  "benefits": ["복리후생1", "복리후생2"]
+  "summary": "전체 요약 (3-4문장)",
+  "roleTitle": "직무명",
+  "experienceLevel": "경력 요건 + 근무 형태 + 근무지/시간",
+  "companyInfo": { "name": "회사명", "industry": "업종", "size": "규모/성장 단계", "culture": ["키워드"] },
+  "keyResponsibilities": ["업무1", "업무2"],
+  "requirements": ["자격요건1", "자격요건2"],
+  "preferredRequirements": ["우대사항1", "우대사항2"],
+  "benefits": ["혜택1", "혜택2"]
 }
 
-## 분석 지침
-- "자격요건", "필수", "지원자격" → category: "required"
-- "우대사항", "우대", "플러스" → category: "preferred"
-- 기타 언급 → category: "etc"
-- 경력 표현: "N년 이상", "신입", "경력무관" 등 원문 그대로 기재
-- 파악할 수 없는 필드는 빈 문자열 또는 빈 배열로 두세요
-- skills에서 동일 스킬이 필수/우대 모두에 나오면 "required" 우선`;
+## skills — 최대 25개
+
+### 추출 대상
+- 프로그래밍 언어, 프레임워크, 라이브러리, DB, 인프라, 플랫폼, 개발 도구
+- AI/ML 도메인 기술 (LLM, 멀티모달, 에이전트, 프롬프트 엔지니어링, 모델 파인튜닝 등)
+- 기술적 방법론 (데이터 파이프라인, End-to-End 배포, SOTA 연구 등)
+
+### 제외 대상
+- Slack, Notion, Linear 같은 순수 협업 도구
+- 성격/태도 (자율, 책임감, 도전 정신 등) — 이건 culture로
+
+### 분류 규칙 (중요)
+- [자격요건], [필수 요건] 섹션의 기술 → **required**
+- [우대사항], [우대], [플러스], [있으면 좋음] 섹션의 기술 → **preferred** (반드시)
+- [주요업무]에서 언급된 기술도 required로 간주
+- 어디 속하는지 불명확 → etc
+
+### context (20자 이내)
+- 해당 스킬이 어떻게 쓰이는지 간결히 설명 (예: "AI 에이전트 모듈 개발", "자체 모델 제작", "파이프라인 구축")
+
+## benefits — 원문의 모든 혜택 포함
+
+다음 항목들을 모두 담으세요. 항목마다 구체적 금액/조건 보존:
+- [혜택 및 복지], [복리후생] 섹션의 모든 항목
+- 합격보상/사이닝 보너스 (금액 포함: "합격 시 지원자 현금 50만원")
+- 식대/식사 지원 (구체적으로: "점심·저녁 식사 제공")
+- 학습/자기계발 지원 (금액 포함: "AI 서비스 사용료 월 최대 50만원")
+- 건강검진, 휴가, 유연근무, 장비 지원 등
+
+## keyResponsibilities
+
+[주요업무] 섹션의 각 항목을 그대로 풍부하게 담으세요. 세부 설명이 있으면 포함.
+
+## requirements — 자격요건 원문 보존
+
+[자격요건], [필수 요건], [지원자격] 섹션의 각 bullet을 **문장 그대로** 담으세요. skills에 이미 기술 스킬로 분해되지만, "N년 이상 경험", "CS 전공", "견고한 추상화와 출시 속도 균형" 같은 mindset/경력 요건은 문장 자체가 정보입니다.
+
+예시:
+- "프로덕션 백엔드 시스템을 설계·운영해 본 경험이 3년 이상"
+- "확장성, 신뢰성, 동시성을 고려한 API와 분산 시스템 설계에 본인만의 기준이 있으신 분"
+- "컴퓨터 공학 전공 혹은 그에 준하는 지식"
+
+## preferredRequirements — 우대사항 원문 보존
+
+[우대사항], [우대], [플러스] 섹션의 각 bullet을 문장 그대로 담으세요. requirements와 동일 원칙.
+
+## experienceLevel
+
+원문의 고용/근무 조건을 종합:
+- 경력 요건 (신입/N년 이상/인턴 등)
+- 고용 형태 (정규직/계약직/인턴/정규직 전환형)
+- 근무 기간 (인턴 X개월 등)
+- 근무지 (도시/구)
+- 근무 시간 (주 X일, 시간대)
+
+예: "정규직 전환형 인턴 3개월 · 주 5일 10:00-19:00 · 서울 강남구"
+
+## companyInfo
+
+- **name**: 회사명 (원문에 없으면 빈 문자열)
+- **industry**: 업종 + 제품 특성 (예: "AI 기반 영상 제작/편집 SaaS")
+- **size**: 규모/성장 단계 (예: "스타트업 · ARR 10억 · $250만 시드 투자")
+- **culture**: 원문에서 추출한 조직 문화 키워드 7-10개 (자율, 책임, 글로벌, 도전, 성과 지향, 빠른 실행, 최고 지향 등)
+
+## summary
+
+3-4문장으로 "회사·제품 → 포지션 역할 → 핵심 미션"을 담으세요. 요약하되 핵심 수치/특징을 유지 (SOTA, ARR, 글로벌 등).
+
+## 기타
+- 원문에 없는 정보는 추측하지 말고 빈 문자열/배열.
+- 우대사항이 원문에 있으면 skills의 preferred로 **반드시** 드러나야 함.`;
 
 export function buildAnalyzeMessages(jdText: string): AiMessage[] {
   return [
@@ -51,15 +108,28 @@ export function buildAnalyzeMessages(jdText: string): AiMessage[] {
 
 /**
  * Gemini 응답에서 JSON을 추출하고 Zod로 검증.
- * 코드블록으로 감싸져 있을 경우 자동 제거.
+ * 코드블록, 잘린 JSON 등 다양한 케이스 처리.
  */
 export function extractJson(raw: string): AnalysisResult {
   let cleaned = raw.trim();
 
-  // 마크다운 코드블록 제거
+  // 마크다운 코드블록 제거 (닫는 ``` 없는 경우도 처리)
   const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlockMatch) {
     cleaned = codeBlockMatch[1].trim();
+  } else {
+    // 닫는 ```가 없는 경우 (토큰 제한으로 잘림)
+    const openMatch = cleaned.match(/```(?:json)?\s*([\s\S]*)/);
+    if (openMatch) {
+      cleaned = openMatch[1].trim();
+    }
+  }
+
+  // 첫 번째 { 부터 마지막 } 까지 추출
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
   }
 
   // JSON 파싱

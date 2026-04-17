@@ -1,0 +1,62 @@
+박켈빈 | AI Application Engineer
+
+연락처: kelvin.park@email.com | GitHub: github.com/kelvinpark
+
+---
+
+경력
+
+[스타트업A] 백엔드 개발자 | 2024.06 - 현재
+- Node.js + Express 기반 REST API 서버 개발 및 운영
+- PostgreSQL 스키마 설계, 쿼리 최적화 (슬로우 쿼리 70% 개선)
+- Redis 캐싱 레이어 도입으로 API 응답 시간 40% 단축
+- GitHub Actions CI/CD 파이프라인 구축 및 자동 배포
+- OpenAI API 연동 챗봇 기능 개발 (프롬프트 엔지니어링, 스트리밍 응답)
+
+[프리랜서] 웹 개발 | 2023.09 - 2024.05
+- React + TypeScript SPA 3건 외주 개발
+- Next.js 13 App Router 기반 랜딩 페이지 제작
+- Tailwind CSS 활용 반응형 UI 구현
+
+---
+
+기술 스택
+
+언어: TypeScript, JavaScript, Python
+프론트엔드: React, Next.js, Tailwind CSS, Framer Motion
+백엔드: Node.js, Express, FastAPI
+데이터베이스: PostgreSQL, Redis, Pinecone (벡터 DB)
+AI/LLM: OpenAI API, Google Gemini API, LangChain, RAG 파이프라인
+인프라: Docker, GitHub Actions, Vercel, AWS (EC2, S3)
+기타: Git, Zod, Prisma ORM
+
+---
+
+프로젝트
+
+Forge — RAG 기반 문서 검색 엔진 (개인 프로젝트)
+- Pinecone 벡터 DB + OpenAI Embeddings로 시맨틱 검색 구현
+- LLM 응답 품질 평가를 위한 자체 Eval 프레임워크 구축
+- 프롬프트 캐싱으로 API 비용 60% 절감
+- 기술 블로그 5편 작성 (RAG 최적화, 벡터 검색 전략)
+
+JobScout — AI 채용공고 분석기 (개인 프로젝트)
+- Next.js 15 + Gemini Flash 기반 채용공고 자동 분석
+- SSE 스트리밍으로 실시간 분석 결과 렌더링
+- 이력서 파싱 → JD 매칭 → 자소서 생성 → 면접 질문 생성 파이프라인
+- Zod 스키마 기반 LLM 출력 구조화
+
+---
+
+학력
+
+한국대학교 컴퓨터공학과 학사 | 2019 - 2023
+
+---
+
+자기소개
+
+LLM Application 개발에 집중하고 있는 주니어 개발자입니다.
+RAG, 프롬프트 엔지니어링, 벡터 검색 등 AI 앱 개발 핵심 기술을 실제 프로젝트에 적용하며 학습하고 있습니다.
+"라이브러리 의존 최소화, 직접 구현으로 원리 이해"를 원칙으로 삼고 있으며,
+기술 블로그를 통해 학습 내용을 꾸준히 정리합니다.

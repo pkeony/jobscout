@@ -14,24 +14,24 @@ const container = {
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
+      staggerChildren: 0.04,
     },
   },
 };
 
 const item = {
-  hidden: { opacity: 0, y: 16 },
+  hidden: { opacity: 0, y: 4 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, ease: "easeOut" as const },
+    transition: { duration: 0.08, ease: [0.16, 1, 0.3, 1] as const },
   },
 };
 
 export function StaggerList({
   children,
   className,
-  staggerDelay = 0.08,
+  staggerDelay = 0.04,
 }: StaggerListProps) {
   const variants = {
     ...container,

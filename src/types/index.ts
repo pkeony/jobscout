@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // ─── Skill ──────────────────────────────────────────
 
-export const SkillCategorySchema = z.enum(["required", "preferred", "etc"]);
+export const SkillCategorySchema = z.enum(["required", "preferred", "etc"]).catch("etc");
 export type SkillCategory = z.infer<typeof SkillCategorySchema>;
 
 export const SkillLevelSchema = z.enum([
@@ -10,38 +10,40 @@ export const SkillLevelSchema = z.enum([
   "intermediate",
   "advanced",
   "unspecified",
-]);
+]).catch("unspecified");
 export type SkillLevel = z.infer<typeof SkillLevelSchema>;
 
 export const SkillSchema = z.object({
   name: z.string(),
   category: SkillCategorySchema,
   level: SkillLevelSchema,
-  context: z.string(),
-});
+  context: z.string().optional().default(""),
+}).passthrough();
 export type Skill = z.infer<typeof SkillSchema>;
 
 // ─── CompanyInfo ────────────────────────────────────
 
 export const CompanyInfoSchema = z.object({
-  name: z.string(),
+  name: z.string().optional().default("회사명 미확인"),
   industry: z.string().optional(),
   size: z.string().optional(),
-  culture: z.array(z.string()),
-});
+  culture: z.array(z.string()).optional().default([]),
+}).passthrough();
 export type CompanyInfo = z.infer<typeof CompanyInfoSchema>;
 
 // ─── AnalysisResult ─────────────────────────────────
 
 export const AnalysisResultSchema = z.object({
-  skills: z.array(SkillSchema),
-  summary: z.string(),
-  roleTitle: z.string(),
-  experienceLevel: z.string(),
-  companyInfo: CompanyInfoSchema,
-  keyResponsibilities: z.array(z.string()),
-  benefits: z.array(z.string()),
-});
+  skills: z.array(SkillSchema).optional().default([]),
+  summary: z.string().optional().default(""),
+  roleTitle: z.string().optional().default("직무명 미확인"),
+  experienceLevel: z.string().optional().default("미확인"),
+  companyInfo: CompanyInfoSchema.optional().default({ name: "회사명 미확인", culture: [] }),
+  keyResponsibilities: z.array(z.string()).optional().default([]),
+  requirements: z.array(z.string()).optional().default([]),
+  preferredRequirements: z.array(z.string()).optional().default([]),
+  benefits: z.array(z.string()).optional().default([]),
+}).passthrough();
 export type AnalysisResult = z.infer<typeof AnalysisResultSchema>;
 
 // ─── CrawlResult ────────────────────────────────────

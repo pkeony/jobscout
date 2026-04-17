@@ -83,6 +83,135 @@ async function fetchHtml(url: string): Promise<string> {
   return text;
 }
 
+// ─── 사이트별 전용 파서 ────────────────────────────
+
+interface WantedAddress {
+  full_location?: string;
+  location?: string;
+  country?: string;
+}
+
+interface WantedReward {
+  formatted_total?: string;
+  formatted_recommender?: string;
+  formatted_recommendee?: string;
+}
+
+interface WantedCareer {
+  annual_from?: number;
+  annual_to?: number;
+  is_newbie?: boolean;
+  is_expert?: boolean;
+}
+
+interface WantedJob {
+  position?: string;
+  intro?: string;
+  main_tasks?: string;
+  requirements?: string;
+  preferred_points?: string;
+  benefits?: string;
+  hire_rounds?: string | { title?: string }[];
+  company?: { company_name?: string };
+  address?: WantedAddress;
+  reward?: WantedReward;
+  employment_type?: string;
+  employment_note?: string;
+  career?: WantedCareer;
+}
+
+function formatCareer(career?: WantedCareer): string {
+  if (!career) return "";
+  if (career.is_newbie && !career.is_expert) return "신입";
+  if (career.is_expert && !career.is_newbie) return "경력";
+  const from = career.annual_from ?? 0;
+  const to = career.annual_to ?? 0;
+  if (from === 0 && to > 0) return `신입~${to}년`;
+  if (from > 0 && to > 0) return `${from}~${to}년`;
+  return "";
+}
+
+function normalizeHireRounds(rounds: WantedJob["hire_rounds"]): string {
+  if (!rounds) return "";
+  if (typeof rounds === "string") return rounds.trim();
+  return rounds.map((r) => r.title).filter(Boolean).join(" → ");
+}
+
+function formatEmploymentType(type?: string): string {
+  if (!type) return "";
+  const map: Record<string, string> = {
+    intern: "인턴",
+    full_time: "정규직",
+    contract: "계약직",
+    part_time: "파트타임",
+  };
+  return map[type] ?? type;
+}
+
+function formatReward(reward?: WantedReward): string {
+  if (!reward) return "";
+  const parts: string[] = [];
+  if (reward.formatted_recommendee) parts.push(`지원자 ${reward.formatted_recommendee}`);
+  if (reward.formatted_recommender) parts.push(`추천인 ${reward.formatted_recommender}`);
+  return parts.join(", ");
+}
+
+function tryWantedParser($: cheerio.CheerioAPI, url: string): CrawlResult | null {
+  if (!url.includes("wanted.co.kr")) return null;
+
+  const nextDataScript = $('script#__NEXT_DATA__').html();
+  if (!nextDataScript) return null;
+
+  try {
+    const nextData = JSON.parse(nextDataScript) as {
+      props?: { pageProps?: { initialData?: WantedJob } };
+    };
+    const job = nextData.props?.pageProps?.initialData;
+    if (!job) return null;
+
+    const sections: string[] = [];
+    if (job.position) sections.push(`[직무명] ${job.position}`);
+
+    const employment = formatEmploymentType(job.employment_type);
+    const careerText = formatCareer(job.career);
+    const locationText = job.address?.full_location ?? job.address?.location;
+    const conditionParts: string[] = [];
+    if (employment) conditionParts.push(employment);
+    if (careerText) conditionParts.push(careerText);
+    if (locationText) conditionParts.push(locationText);
+    if (conditionParts.length) {
+      sections.push(`[근무조건 요약] ${conditionParts.join(" · ")}`);
+    }
+    if (job.employment_note) {
+      sections.push(`[고용 상세]\n${job.employment_note}`);
+    }
+
+    const rewardText = formatReward(job.reward);
+    if (rewardText) sections.push(`[합격보상] ${rewardText}`);
+
+    if (job.intro) sections.push(`[소개]\n${job.intro}`);
+    if (job.main_tasks) sections.push(`[주요업무]\n${job.main_tasks}`);
+    if (job.requirements) sections.push(`[자격요건]\n${job.requirements}`);
+    if (job.preferred_points) sections.push(`[우대사항]\n${job.preferred_points}`);
+    if (job.benefits) sections.push(`[혜택 및 복지]\n${job.benefits}`);
+
+    const rounds = normalizeHireRounds(job.hire_rounds);
+    if (rounds) sections.push(`[채용 전형]\n${rounds}`);
+
+    const text = sections.join("\n\n");
+    if (text.length < 50) return null;
+
+    return {
+      title: job.position ?? "제목 없음",
+      company: job.company?.company_name ?? "회사명 미확인",
+      text,
+      url,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Generic parser ─────────────────────────────────
 
 function extractTitle($: cheerio.CheerioAPI): string {
@@ -160,6 +289,11 @@ export async function crawlJobDescription(url: string): Promise<CrawlResult> {
   const html = await fetchHtml(url);
   const $ = cheerio.load(html);
 
+  // 사이트별 전용 파서 시도
+  const siteResult = tryWantedParser($, url);
+  if (siteResult) return siteResult;
+
+  // Generic fallback
   const title = extractTitle($);
   const company = extractCompany($);
   const text = extractBody($);

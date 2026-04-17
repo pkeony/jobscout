@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     model: "gemini-2.5-flash",
     system: ANALYZE_SYSTEM_PROMPT,
     temperature: 0.1,
-    maxTokens: 4096,
+    maxTokens: 16384,
     signal: req.signal,
   });
 

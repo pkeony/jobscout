@@ -58,18 +58,20 @@ export function useStreamingResponse<T extends { type: string }>(
   const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(
-    async (body: Record<string, unknown>) => {
+    async (body: Record<string, unknown> | FormData) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
       dispatch({ type: "START" });
 
+      const isFormData = body instanceof FormData;
+
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          headers: isFormData ? undefined : { "Content-Type": "application/json" },
+          body: isFormData ? body : JSON.stringify(body),
           signal: controller.signal,
         });
 
@@ -101,6 +103,16 @@ export function useStreamingResponse<T extends { type: string }>(
             if (!match?.[1]) continue;
 
             const chunk = JSON.parse(match[1]) as T;
+
+            // SSE error 이벤트 처리 (서버에서 스트리밍 에러 발생 시)
+            if (chunk.type === "error") {
+              const msg = "message" in chunk && typeof chunk.message === "string"
+                ? chunk.message
+                : "서버 오류";
+              dispatch({ type: "ERROR", error: msg });
+              return;
+            }
+
             const text =
               "text" in chunk && typeof chunk.text === "string"
                 ? chunk.text
