@@ -65,8 +65,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  if (target === "cover-letter" || target === "interview" || target === "analyze") {
+    console.error(
+      `❌ --target=${target} 은 Phase E1 에서 활성화 예정입니다. 지금은 match 만 가능.`,
+    );
+    process.exit(1);
+  }
+
   if (target !== "match") {
-    console.error(`❌ 아직 --target=${target}은 지원하지 않습니다. match만 가능.`);
+    console.error(
+      `❌ 지원하지 않는 target: ${target}. 가능한 값: match (E1 이후 cover-letter / interview / analyze 추가).`,
+    );
     process.exit(1);
   }
 
