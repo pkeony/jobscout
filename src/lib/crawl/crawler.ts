@@ -10,6 +10,11 @@ import {
   parseJobkoreaHtml,
   type JobkoreaParseResult,
 } from "./parsers/jobkorea";
+import {
+  normalizeIncruitUrl,
+  parseIncruitHtml,
+  type IncruitParseResult,
+} from "./parsers/incruit";
 
 const MAX_BODY_SIZE = 1_000_000; // 1MB
 const FETCH_TIMEOUT_MS = 10_000;
@@ -392,6 +397,34 @@ export async function crawlJobDescription(url: string): Promise<CrawlJobResult> 
       iframeHtml,
       url,
       jobkoreaInfo.contentUrl,
+    );
+    if (parsed) {
+      if (parsed.result.text.length < 50 && parsed.imageUrls.length === 0) {
+        throw new CrawlError(
+          "채용공고 텍스트를 충분히 추출하지 못했습니다. 텍스트를 직접 붙여넣어 주세요.",
+          422,
+        );
+      }
+      return {
+        ...parsed.result,
+        imageUrls: parsed.imageUrls,
+        needsVisionOcr: parsed.needsVisionOcr,
+      };
+    }
+  }
+
+  // ─── 잡인크루트 전용: 메인 + iframe 조합 (잡코리아와 동일 패턴) ──
+  const incruitInfo = normalizeIncruitUrl(url);
+  if (incruitInfo) {
+    const [mainHtml, iframeHtml] = await Promise.all([
+      fetchHtml(url),
+      fetchHtml(incruitInfo.contentUrl),
+    ]);
+    const parsed: IncruitParseResult | null = parseIncruitHtml(
+      mainHtml,
+      iframeHtml,
+      url,
+      incruitInfo.contentUrl,
     );
     if (parsed) {
       if (parsed.result.text.length < 50 && parsed.imageUrls.length === 0) {

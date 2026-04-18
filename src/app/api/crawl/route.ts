@@ -3,12 +3,17 @@ import { CrawlRequestSchema } from "@/types";
 import { crawlJobDescription, CrawlError } from "@/lib/crawl/crawler";
 import { SARAMIN_IMAGE_HOSTS } from "@/lib/crawl/parsers/saramin";
 import { JOBKOREA_IMAGE_HOSTS } from "@/lib/crawl/parsers/jobkorea";
+import { INCRUIT_IMAGE_HOSTS } from "@/lib/crawl/parsers/incruit";
 import { fetchImageAsBase64, type FetchedImage } from "@/lib/vision/fetch-image";
 import { ocrImagesToText } from "@/lib/vision/ocr";
 import { detectPositions } from "@/lib/crawl/detect-positions";
 
 const MAX_VISION_IMAGES = 5;
-const ALLOWED_IMAGE_HOSTS = [...SARAMIN_IMAGE_HOSTS, ...JOBKOREA_IMAGE_HOSTS];
+const ALLOWED_IMAGE_HOSTS = [
+  ...SARAMIN_IMAGE_HOSTS,
+  ...JOBKOREA_IMAGE_HOSTS,
+  ...INCRUIT_IMAGE_HOSTS,
+];
 
 export async function POST(req: Request) {
   try {
