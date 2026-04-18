@@ -31,6 +31,7 @@ import { FadeIn, StaggerList, StaggerItem } from "@/components/motion";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { AppShell } from "@/components/app-shell";
 import { PixelProgressRing } from "@/components/pixel-progress-ring";
+import { ScoreBreakdownBar } from "@/components/score-breakdown-bar";
 
 // ─── 프로필 입력 폼 ──────────────────────────────────
 
@@ -361,6 +362,15 @@ export default function MatchPage() {
     );
   }, [matchResult]);
 
+  useEffect(() => {
+    const sb = matchResult?.scoreBreakdown;
+    if (!sb) return;
+    const sum = sb.requiredSkills.earned + sb.preferredSkills.earned + sb.experience.earned + sb.base;
+    if (Math.abs(sum - matchResult.score) > 1 && matchResult.score !== 100) {
+      console.warn("[match] scoreBreakdown sum mismatch", { sum, score: matchResult.score, sb });
+    }
+  }, [matchResult]);
+
   const handleRetry = () => {
     reset();
     setProfile(null);
@@ -455,7 +465,12 @@ export default function MatchPage() {
                     {matchResult.summary}
                   </p>
                 </div>
-                <PixelProgressRing score={matchResult.score} className="w-48 h-48" />
+                <div className="flex flex-col items-center gap-3">
+                  <PixelProgressRing score={matchResult.score} className="w-48 h-48" />
+                  {matchResult.scoreBreakdown && (
+                    <ScoreBreakdownBar breakdown={matchResult.scoreBreakdown} />
+                  )}
+                </div>
               </div>
             </FadeIn>
 

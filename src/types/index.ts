@@ -75,8 +75,23 @@ export const SkillMatchSchema = z.object({
 });
 export type SkillMatch = z.infer<typeof SkillMatchSchema>;
 
+export const ScoreBucketSchema = z.object({
+  earned: z.number().min(0),
+  max: z.number().min(0),
+});
+export type ScoreBucket = z.infer<typeof ScoreBucketSchema>;
+
+export const ScoreBreakdownSchema = z.object({
+  requiredSkills: ScoreBucketSchema,
+  preferredSkills: ScoreBucketSchema,
+  experience: ScoreBucketSchema,
+  base: z.number().min(0),
+});
+export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
+
 export const MatchResultSchema = z.object({
   score: z.number().min(0).max(100),
+  scoreBreakdown: ScoreBreakdownSchema.optional(),
   summary: z.string(),
   strengths: z.array(z.string()),
   gaps: z.array(z.string()),
