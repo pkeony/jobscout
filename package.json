@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "eval": "tsx eval/cli.ts",
-    "eval:match": "tsx eval/cli.ts --target=match"
+    "eval:match": "tsx eval/cli.ts --target=match",
+    "eval:analyze": "tsx eval/cli.ts --target=analyze"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

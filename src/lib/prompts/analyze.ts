@@ -1,6 +1,8 @@
 import type { AiMessage } from "@/lib/ai/types";
 import { AnalysisResultSchema, type AnalysisResult } from "@/types";
 
+export const PROMPT_VERSION = "analyze@v1.0.0-2026-04-19";
+
 export const ANALYZE_SYSTEM_PROMPT = `채용공고 분석 전문가. 입력 텍스트를 분석하여 JSON을 반환합니다.
 
 ## 핵심 원칙

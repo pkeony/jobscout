@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ModelId } from "@/lib/ai/types";
 import { printReport, runEval } from "./runner";
+import type { EvalTarget } from "./types";
 
 function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -14,10 +15,6 @@ function parseArgs(argv: string[]): Record<string, string> {
   return out;
 }
 
-/**
- * .env.local을 파싱해서 process.env로 흘려 넣는다.
- * dotenv 의존 없이 경량 구현.
- */
 function loadEnvFile(path: string): void {
   if (!existsSync(path)) return;
   const content = readFileSync(path, "utf8");
@@ -50,12 +47,21 @@ const VALID_MODELS: ModelId[] = [
   "gemini-2.5-flash-lite",
 ];
 
+const IMPLEMENTED_TARGETS: EvalTarget[] = ["match", "analyze"];
+
+const GOLDSET_PATHS: Record<EvalTarget, string> = {
+  match: "eval/goldset/matches.jsonl",
+  analyze: "eval/goldset/analyses.jsonl",
+  "cover-letter": "eval/goldset/cover-letters.jsonl",
+  interview: "eval/goldset/interviews.jsonl",
+};
+
 async function main(): Promise<void> {
   loadEnvFile(join(process.cwd(), ".env.local"));
   loadEnvFile(join(process.cwd(), ".env"));
 
   const args = parseArgs(process.argv.slice(2));
-  const target = args.target ?? "match";
+  const target = (args.target ?? "match") as EvalTarget;
   const modelArg = (args.model ?? "gemini-2.5-flash") as ModelId;
 
   if (!VALID_MODELS.includes(modelArg)) {
@@ -65,16 +71,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (target === "cover-letter" || target === "interview" || target === "analyze") {
+  if (!(target in GOLDSET_PATHS)) {
     console.error(
-      `❌ --target=${target} 은 Phase E1 에서 활성화 예정입니다. 지금은 match 만 가능.`,
+      `❌ 지원하지 않는 target: ${target}. 가능한 값: ${Object.keys(GOLDSET_PATHS).join(", ")}`,
     );
     process.exit(1);
   }
 
-  if (target !== "match") {
+  if (!IMPLEMENTED_TARGETS.includes(target)) {
     console.error(
-      `❌ 지원하지 않는 target: ${target}. 가능한 값: match (E1 이후 cover-letter / interview / analyze 추가).`,
+      `❌ --target=${target} 은 Phase E1 의 다음 단계에서 활성화 예정입니다. 지금 구현된 target: ${IMPLEMENTED_TARGETS.join(", ")}`,
     );
     process.exit(1);
   }
@@ -82,7 +88,8 @@ async function main(): Promise<void> {
   assertEnv(["GOOGLE_API_KEY", "ANTHROPIC_API_KEY"]);
 
   const report = await runEval({
-    goldsetPath: join(process.cwd(), "eval/goldset/matches.jsonl"),
+    target,
+    goldsetPath: join(process.cwd(), GOLDSET_PATHS[target]),
     model: modelArg,
     outDir: join(process.cwd(), "eval/reports"),
   });

@@ -13,7 +13,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AnalysisResultSchema, type UserProfile } from "@/types";
-import type { GoldsetCase } from "./types";
+import type { MatchExpected, MatchGoldsetCase } from "./types";
 
 const DEV_SERVER = process.env.DEV_SERVER ?? "http://localhost:3000";
 
@@ -23,7 +23,7 @@ interface Source {
   url: string;
   focusPosition?: string;
   profile: UserProfile;
-  expected: GoldsetCase["expected"];
+  expected: MatchExpected;
 }
 
 /**
@@ -268,7 +268,7 @@ async function analyze(text: string, focusPosition?: string): Promise<unknown> {
 }
 
 async function main(): Promise<void> {
-  const caseList: GoldsetCase[] = [];
+  const caseList: MatchGoldsetCase[] = [];
   for (const src of SOURCES) {
     process.stderr.write(`[${src.id}] crawling ${src.url}\n`);
     const crawled = await crawl(src.url);
@@ -282,6 +282,7 @@ async function main(): Promise<void> {
     caseList.push({
       id: src.id,
       label: src.label,
+      target: "match",
       jdText: crawled.text,
       analysisResult,
       profile: src.profile,
