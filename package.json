@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "eval": "tsx eval/cli.ts",
     "eval:match": "tsx eval/cli.ts --target=match",
-    "eval:analyze": "tsx eval/cli.ts --target=analyze"
+    "eval:analyze": "tsx eval/cli.ts --target=analyze",
+    "eval:cover-letter": "tsx eval/cli.ts --target=cover-letter",
+    "eval:interview": "tsx eval/cli.ts --target=interview"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

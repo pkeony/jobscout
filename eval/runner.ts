@@ -7,6 +7,16 @@ import {
   type RunAnalyzeEvalOpts,
 } from "./runners/analyze";
 import {
+  printCoverLetterReport,
+  runCoverLetterEval,
+  type RunCoverLetterEvalOpts,
+} from "./runners/cover-letter";
+import {
+  printInterviewReport,
+  runInterviewEval,
+  type RunInterviewEvalOpts,
+} from "./runners/interview";
+import {
   printMatchReport,
   runMatchEval,
   type RunMatchEvalOpts,
@@ -21,7 +31,11 @@ export interface RunEvalOpts {
 }
 
 export async function runEval(opts: RunEvalOpts): Promise<EvalReport> {
-  const subOpts: RunMatchEvalOpts | RunAnalyzeEvalOpts = {
+  const subOpts:
+    | RunMatchEvalOpts
+    | RunAnalyzeEvalOpts
+    | RunCoverLetterEvalOpts
+    | RunInterviewEvalOpts = {
     goldsetPath: opts.goldsetPath,
     model: opts.model,
   };
@@ -34,10 +48,11 @@ export async function runEval(opts: RunEvalOpts): Promise<EvalReport> {
       report = await runAnalyzeEval(subOpts);
       break;
     case "cover-letter":
+      report = await runCoverLetterEval(subOpts);
+      break;
     case "interview":
-      throw new Error(
-        `[runner] target=${opts.target} 아직 구현되지 않았습니다.`,
-      );
+      report = await runInterviewEval(subOpts);
+      break;
     default: {
       const _exhaustive: never = opts.target;
       throw new Error(`[runner] 알 수 없는 target: ${String(_exhaustive)}`);
@@ -66,6 +81,12 @@ export function printReport(report: EvalReport): void {
       return;
     case "analyze":
       printAnalyzeReport(report);
+      return;
+    case "cover-letter":
+      printCoverLetterReport(report);
+      return;
+    case "interview":
+      printInterviewReport(report);
       return;
     default: {
       const _exhaustive: never = report;

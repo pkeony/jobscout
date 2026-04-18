@@ -47,7 +47,12 @@ const VALID_MODELS: ModelId[] = [
   "gemini-2.5-flash-lite",
 ];
 
-const IMPLEMENTED_TARGETS: EvalTarget[] = ["match", "analyze"];
+const IMPLEMENTED_TARGETS: EvalTarget[] = [
+  "match",
+  "analyze",
+  "cover-letter",
+  "interview",
+];
 
 const GOLDSET_PATHS: Record<EvalTarget, string> = {
   match: "eval/goldset/matches.jsonl",

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   AnalysisResultSchema,
+  CoverLetterResultSchema,
+  InterviewResultSchema,
   MatchResultSchema,
   UserProfileSchema,
 } from "@/types";
@@ -56,17 +58,50 @@ export const AnalyzeGoldsetSchema = GoldsetBaseSchema.extend({
 });
 export type AnalyzeGoldsetCase = z.infer<typeof AnalyzeGoldsetSchema>;
 
-// ─── cover-letter / interview target (다음 세션 확정) ─
+// ─── cover-letter target ──────────────────────────────
+
+export const COVER_LETTER_REQUIRED_HEADINGS = [
+  "지원 동기",
+  "핵심 역량",
+  "성장 경험",
+  "입사 후 포부",
+] as const;
+
+export const CoverLetterExpectedSchema = z.object({
+  requiredHeadings: z
+    .array(z.string())
+    .default([...COVER_LETTER_REQUIRED_HEADINGS]),
+  minParagraphsPerSection: z.number().default(2),
+  maxParagraphsPerSection: z.number().default(3),
+  expectedCompanyName: z.string().optional(),
+  judgeRubric: z.string(),
+});
+export type CoverLetterExpected = z.infer<typeof CoverLetterExpectedSchema>;
 
 export const CoverLetterGoldsetSchema = GoldsetBaseSchema.extend({
   target: z.literal("cover-letter"),
-  expected: z.unknown(),
+  expected: CoverLetterExpectedSchema,
 });
 export type CoverLetterGoldsetCase = z.infer<typeof CoverLetterGoldsetSchema>;
 
+// ─── interview target ─────────────────────────────────
+
+export const InterviewExpectedSchema = z.object({
+  questionsTotal: z.number().default(10),
+  technicalCount: z.number().default(5),
+  behavioralCount: z.number().default(3),
+  situationalCount: z.number().default(2),
+  tipsCount: z.number().default(4),
+  minSampleAnswerSentences: z.number().default(3),
+  maxSampleAnswerSentences: z.number().default(5),
+  minProfileSkillMentionRate: z.number().default(0),
+  judgeRubric: z.string(),
+});
+export type InterviewExpected = z.infer<typeof InterviewExpectedSchema>;
+
 export const InterviewGoldsetSchema = GoldsetBaseSchema.extend({
   target: z.literal("interview"),
-  expected: z.unknown(),
+  expected: InterviewExpectedSchema,
 });
 export type InterviewGoldsetCase = z.infer<typeof InterviewGoldsetSchema>;
 
@@ -106,6 +141,34 @@ export const AnalyzeRuleScoreSchema = z.object({
   domainIntrusionCount: z.number(),
 });
 export type AnalyzeRuleScore = z.infer<typeof AnalyzeRuleScoreSchema>;
+
+export const CoverLetterRuleScoreSchema = z.object({
+  schemaValidity: z.boolean(),
+  sectionCount: z.number(),
+  headingsMatched: z.number(),
+  headingsTotal: z.number(),
+  paragraphCountValid: z.boolean(),
+  companyNamePresent: z.boolean(),
+  jobTitlePresent: z.boolean(),
+  starKeywordCount: z.number(),
+});
+export type CoverLetterRuleScore = z.infer<typeof CoverLetterRuleScoreSchema>;
+
+export const InterviewRuleScoreSchema = z.object({
+  schemaValidity: z.boolean(),
+  preTechnicalCount: z.number(),
+  preBehavioralCount: z.number(),
+  preSituationalCount: z.number(),
+  preTipsCount: z.number(),
+  categoryDistributionExact: z.boolean(),
+  categoryOrderValid: z.boolean(),
+  avgSampleAnswerSentences: z.number(),
+  sampleAnswerSentenceValid: z.boolean(),
+  profileSkillMentionCount: z.number(),
+  profileSkillTotal: z.number(),
+  duplicateQuestionPairs: z.number(),
+});
+export type InterviewRuleScore = z.infer<typeof InterviewRuleScoreSchema>;
 
 // ─── Judge score (공통) ───────────────────────────────
 
@@ -149,7 +212,43 @@ export const AnalyzeCaseReportSchema = z.object({
 });
 export type AnalyzeCaseReport = z.infer<typeof AnalyzeCaseReportSchema>;
 
-export type CaseReport = MatchCaseReport | AnalyzeCaseReport;
+export const CoverLetterCaseReportSchema = z.object({
+  caseId: z.string(),
+  label: z.string(),
+  model: z.string(),
+  target: z.literal("cover-letter"),
+  latencyMs: z.number(),
+  tokensIn: z.number(),
+  tokensOut: z.number(),
+  result: CoverLetterResultSchema.nullable(),
+  rawOutput: z.string().optional(),
+  rules: CoverLetterRuleScoreSchema,
+  judge: JudgeScoreSchema.nullable(),
+  error: z.string().optional(),
+});
+export type CoverLetterCaseReport = z.infer<typeof CoverLetterCaseReportSchema>;
+
+export const InterviewCaseReportSchema = z.object({
+  caseId: z.string(),
+  label: z.string(),
+  model: z.string(),
+  target: z.literal("interview"),
+  latencyMs: z.number(),
+  tokensIn: z.number(),
+  tokensOut: z.number(),
+  result: InterviewResultSchema.nullable(),
+  rawOutput: z.string().optional(),
+  rules: InterviewRuleScoreSchema,
+  judge: JudgeScoreSchema.nullable(),
+  error: z.string().optional(),
+});
+export type InterviewCaseReport = z.infer<typeof InterviewCaseReportSchema>;
+
+export type CaseReport =
+  | MatchCaseReport
+  | AnalyzeCaseReport
+  | CoverLetterCaseReport
+  | InterviewCaseReport;
 
 // ─── Aggregate (target 별) ────────────────────────────
 
@@ -184,6 +283,38 @@ export const AnalyzeAggregateSchema = z.object({
 });
 export type AnalyzeAggregate = z.infer<typeof AnalyzeAggregateSchema>;
 
+export const CoverLetterAggregateSchema = z.object({
+  schemaValidityRate: z.number(),
+  sectionCountExactRate: z.number(),
+  headingsCoverage: z.number(),
+  paragraphCountValidRate: z.number(),
+  companyNamePresentRate: z.number(),
+  jobTitlePresentRate: z.number(),
+  avgStarKeywordCount: z.number(),
+  judgeAvg: z.number(),
+  p50LatencyMs: z.number(),
+  p95LatencyMs: z.number(),
+  avgTokensIn: z.number(),
+  avgTokensOut: z.number(),
+});
+export type CoverLetterAggregate = z.infer<typeof CoverLetterAggregateSchema>;
+
+export const InterviewAggregateSchema = z.object({
+  schemaValidityRate: z.number(),
+  categoryDistributionExactRate: z.number(),
+  categoryOrderValidRate: z.number(),
+  sampleAnswerSentenceValidRate: z.number(),
+  avgSampleAnswerSentences: z.number(),
+  profileSkillMentionCoverage: z.number(),
+  avgDuplicateQuestionPairs: z.number(),
+  judgeAvg: z.number(),
+  p50LatencyMs: z.number(),
+  p95LatencyMs: z.number(),
+  avgTokensIn: z.number(),
+  avgTokensOut: z.number(),
+});
+export type InterviewAggregate = z.infer<typeof InterviewAggregateSchema>;
+
 // ─── Eval report (target 별) ──────────────────────────
 
 export const MatchEvalReportSchema = z.object({
@@ -210,8 +341,34 @@ export const AnalyzeEvalReportSchema = z.object({
 });
 export type AnalyzeEvalReport = z.infer<typeof AnalyzeEvalReportSchema>;
 
+export const CoverLetterEvalReportSchema = z.object({
+  runId: z.string(),
+  startedAt: z.string(),
+  target: z.literal("cover-letter"),
+  model: z.string(),
+  promptVersion: z.string().optional(),
+  caseCount: z.number(),
+  cases: z.array(CoverLetterCaseReportSchema),
+  aggregate: CoverLetterAggregateSchema,
+});
+export type CoverLetterEvalReport = z.infer<typeof CoverLetterEvalReportSchema>;
+
+export const InterviewEvalReportSchema = z.object({
+  runId: z.string(),
+  startedAt: z.string(),
+  target: z.literal("interview"),
+  model: z.string(),
+  promptVersion: z.string().optional(),
+  caseCount: z.number(),
+  cases: z.array(InterviewCaseReportSchema),
+  aggregate: InterviewAggregateSchema,
+});
+export type InterviewEvalReport = z.infer<typeof InterviewEvalReportSchema>;
+
 export const EvalReportSchema = z.discriminatedUnion("target", [
   MatchEvalReportSchema,
   AnalyzeEvalReportSchema,
+  CoverLetterEvalReportSchema,
+  InterviewEvalReportSchema,
 ]);
 export type EvalReport = z.infer<typeof EvalReportSchema>;
