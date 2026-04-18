@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -42,3 +43,6 @@ next-env.d.ts
 
 # claude code — local-only overrides
 .claude/settings.local.json
+
+# eval 리포트는 실행할 때마다 생기니 커밋 안 함 (골든셋만 커밋)
+/eval/reports/

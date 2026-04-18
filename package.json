@@ -8,9 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx eval/cli.ts",
+    "eval:match": "tsx eval/cli.ts --target=match"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@base-ui/react": "^1.4.0",
     "@google/genai": "^1.50.1",
     "cheerio": "^1.2.0",
@@ -38,6 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.1.4"
   }
