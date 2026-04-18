@@ -38,7 +38,6 @@ const EARLY_STREAM_FAIL_MARKER = "early_stream_failure";
 const FALLBACK_CHAIN: readonly ModelId[] = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
 ];
 
 function isRetryable(err: unknown): boolean {
@@ -158,7 +157,7 @@ async function* streamSingleModel(
 
 /**
  * 폴백 체인 + 서킷 브레이커가 적용된 스트리밍.
- * - flash → flash-lite → 2.0-flash 순차 시도
+ * - flash → flash-lite 순차 시도
  * - 첫 delta 이후엔 모델 전환 불가 (클라이언트 중복 수신 방지)
  * - 연속 실패 시 서킷 open → 일정 시간 요청 자체 거부
  */

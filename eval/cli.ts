@@ -48,7 +48,6 @@ function assertEnv(keys: string[]): void {
 const VALID_MODELS: ModelId[] = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
 ];
 
 async function main(): Promise<void> {

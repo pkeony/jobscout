@@ -3,7 +3,6 @@ import type { ModelId, AiUsage } from "./types";
 const PRICE_PER_M_TOKENS: Record<ModelId, { input: number; output: number }> = {
   "gemini-2.5-flash": { input: 0.15, output: 0.6 },
   "gemini-2.5-flash-lite": { input: 0.075, output: 0.3 },
-  "gemini-2.0-flash": { input: 0.1, output: 0.4 },
 };
 
 export function calculateCost(

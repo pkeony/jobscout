@@ -1,7 +1,6 @@
 export type ModelId =
   | "gemini-2.5-flash"
-  | "gemini-2.5-flash-lite"
-  | "gemini-2.0-flash";
+  | "gemini-2.5-flash-lite";
 
 export interface AiUsage {
   inputTokens: number;

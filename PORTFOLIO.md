@@ -97,7 +97,6 @@ src/
 const FALLBACK_CHAIN: readonly ModelId[] = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
 ];
 
 // 핵심 불변식: 첫 delta 이후에는 모델 전환 불가 (클라 중복 수신 방지)
@@ -118,13 +117,15 @@ for (const model of models) {
 
 운영 중 경험한 실제 로그:
 ```
-[Gemini] 폴백 체인 시작: [gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash]
-[Gemini] (1/3) gemini-2.5-flash 시도
+[Gemini] 폴백 체인 시작: [gemini-2.5-flash → gemini-2.5-flash-lite]
+[Gemini] (1/2) gemini-2.5-flash 시도
 [Gemini:gemini-2.5-flash] 재시도 1/4 ... 4/4 모두 실패
 [Gemini] gemini-2.5-flash 조기 실패 → 다음 모델(gemini-2.5-flash-lite)로 폴백
-[Gemini] (2/3) gemini-2.5-flash-lite 시도
+[Gemini] (2/2) gemini-2.5-flash-lite 시도
 [Gemini] gemini-2.5-flash-lite 성공 ✓
 ```
+
+> 참고: 초기 폴백 체인에는 `gemini-2.0-flash`가 있었으나, 2026-04 기준 Google이 해당 ID를 deprecate(404)하여 제거. eval로 flash-lite가 judge 기준 오히려 더 높음(0.644 vs 0.565)을 확인 후 단순 2단 체인으로 정리.
 
 ### 2. Vision OCR 파이프라인 ([vision/ocr.ts](src/lib/vision/ocr.ts))
 
