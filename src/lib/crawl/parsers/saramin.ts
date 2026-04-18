@@ -62,6 +62,27 @@ function extractTitle($: cheerio.CheerioAPI): string {
   return $("h1").first().text().trim() || "제목 없음";
 }
 
+function parseCompanyFromTitle(rawTitle: string): string | null {
+  const title = rawTitle.replace(/\s*-\s*사람인\s*$/, "").trim();
+  if (!title) return null;
+
+  // "[회사명] {직무}" — 사람인 og:title에서 자주 등장
+  const bracket = title.match(/^\[\s*([^\]]+?)\s*\]/);
+  if (bracket?.[1]) {
+    const candidate = bracket[1].trim();
+    if (candidate && candidate !== "사람인") return candidate;
+  }
+
+  // "{회사명} 채용 - {본문}" 패턴
+  const beforeChaeyong = title.match(/^(.+?)\s+채용\s*[-–]/);
+  if (beforeChaeyong?.[1]) {
+    const candidate = beforeChaeyong[1].trim();
+    if (candidate && candidate !== "사람인") return candidate;
+  }
+
+  return null;
+}
+
 function extractCompany($: cheerio.CheerioAPI): string {
   const candidates = [
     'meta[property="og:site_name"]',
@@ -74,8 +95,20 @@ function extractCompany($: cheerio.CheerioAPI): string {
   for (const sel of candidates) {
     const el = $(sel).first();
     const text = sel.startsWith("meta") ? el.attr("content")?.trim() : el.text().trim();
-    if (text) return text;
+    if (text && text !== "사람인") return text;
   }
+
+  const ogTitle = $('meta[property="og:title"]').attr("content")?.trim();
+  if (ogTitle) {
+    const fromOg = parseCompanyFromTitle(ogTitle);
+    if (fromOg) return fromOg;
+  }
+  const titleTag = $("title").text().trim();
+  if (titleTag) {
+    const fromTitle = parseCompanyFromTitle(titleTag);
+    if (fromTitle) return fromTitle;
+  }
+
   return "회사명 미확인";
 }
 

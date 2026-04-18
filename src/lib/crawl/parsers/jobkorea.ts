@@ -71,6 +71,27 @@ function extractTitleFromMain($: cheerio.CheerioAPI): string {
   return titleTag.replace(/\s*\|\s*잡코리아\s*$/, "").trim() || "제목 없음";
 }
 
+function parseCompanyFromTitle(rawTitle: string): string | null {
+  const title = rawTitle.replace(/\s*\|\s*잡코리아\s*$/, "").trim();
+  if (!title) return null;
+
+  // "{회사명} 채용 - {본문}" — 잡코리아 og:title 표준 포맷
+  const beforeChaeyong = title.match(/^(.+?)\s+채용\s*[-–]/);
+  if (beforeChaeyong?.[1]) {
+    const candidate = beforeChaeyong[1].trim();
+    if (candidate && candidate !== "잡코리아") return candidate;
+  }
+
+  // "[회사명] {직무}" — 일부 공고
+  const bracket = title.match(/^\[\s*([^\]]+?)\s*\]/);
+  if (bracket?.[1]) {
+    const candidate = bracket[1].trim();
+    if (candidate && candidate !== "잡코리아") return candidate;
+  }
+
+  return null;
+}
+
 function extractCompanyFromMain($: cheerio.CheerioAPI): string {
   const candidates = [
     'meta[property="og:site_name"]',
@@ -84,6 +105,18 @@ function extractCompanyFromMain($: cheerio.CheerioAPI): string {
     const text = sel.startsWith("meta") ? el.attr("content")?.trim() : el.text().trim();
     if (text && text !== "잡코리아") return text;
   }
+
+  const ogTitle = $('meta[property="og:title"]').attr("content")?.trim();
+  if (ogTitle) {
+    const fromOg = parseCompanyFromTitle(ogTitle);
+    if (fromOg) return fromOg;
+  }
+  const titleTag = $("title").text().trim();
+  if (titleTag) {
+    const fromTitle = parseCompanyFromTitle(titleTag);
+    if (fromTitle) return fromTitle;
+  }
+
   return "회사명 미확인";
 }
 
