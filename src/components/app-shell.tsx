@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { href: "/cover-letter", label: "자소서" },
   { href: "/interview", label: "면접 질문" },
   { href: "/profiles", label: "프로필 관리" },
-  { href: "/history", label: "매칭 히스토리" },
+  { href: "/history", label: "히스토리" },
 ];
 
 interface AppShellProps {

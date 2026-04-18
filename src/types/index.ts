@@ -111,6 +111,20 @@ export const MatchResultSchema = z.object({
 });
 export type MatchResult = z.infer<typeof MatchResultSchema>;
 
+// ─── AnalyzeHistoryEntry ────────────────────────────
+
+export const AnalyzeHistoryEntrySchema = z.object({
+  id: z.string(),
+  jobTitle: z.string(),
+  companyName: z.string(),
+  jobUrl: z.string().optional(),
+  focusPosition: z.string().optional(),
+  savedAt: z.number(),
+  jdText: z.string(),
+  analysisResult: AnalysisResultSchema,
+});
+export type AnalyzeHistoryEntry = z.infer<typeof AnalyzeHistoryEntrySchema>;
+
 // ─── MatchHistoryEntry ──────────────────────────────
 
 export const MatchHistoryEntrySchema = z.object({

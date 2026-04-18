@@ -17,6 +17,7 @@ import {
 import { FadeIn, StaggerList, StaggerItem } from "@/components/motion";
 import { AppShell } from "@/components/app-shell";
 import { friendlyError } from "@/lib/utils";
+import { addAnalyzeHistoryEntry } from "@/lib/storage/analyze-history";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDropZone } from "@/components/file-drop-zone";
@@ -470,12 +471,24 @@ export default function AnalyzePage() {
     }
   }, [status, fullText, cachedResult]);
 
-  // 분석 완료 시 결과 캐싱
+  // 분석 완료 시 결과 캐싱 + 히스토리 자동 저장
   useEffect(() => {
     if (status === "done" && analysisResult && !cachedResult) {
       sessionStorage.setItem("jobscout:analyzeResult", JSON.stringify(analysisResult));
+
+      if (jdText && jdText !== "__image__") {
+        const focus = sessionStorage.getItem("jobscout:focusPosition") ?? undefined;
+        addAnalyzeHistoryEntry({
+          jobTitle: crawlMeta?.title || analysisResult.roleTitle || "제목 없음",
+          companyName: crawlMeta?.company || analysisResult.companyInfo?.name || "회사명 미확인",
+          jobUrl: crawlMeta?.url || undefined,
+          focusPosition: focus,
+          jdText,
+          analysisResult,
+        });
+      }
     }
-  }, [status, analysisResult, cachedResult]);
+  }, [status, analysisResult, cachedResult, crawlMeta, jdText]);
 
   const handleRetry = useCallback(() => {
     sessionStorage.removeItem("jobscout:analyzeResult");
