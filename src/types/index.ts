@@ -204,6 +204,37 @@ export const InterviewResultSchema = z
   );
 export type InterviewResult = z.infer<typeof InterviewResultSchema>;
 
+// ─── CoverLetterHistoryEntry ────────────────────────
+
+export const CoverLetterHistoryEntrySchema = z.object({
+  id: z.string(),
+  jobTitle: z.string(),
+  companyName: z.string(),
+  jobUrl: z.string().optional(),
+  focusPosition: z.string().optional(),
+  profileLabel: z.string(),
+  savedAt: z.number(),
+  jdText: z.string(),
+  coverLetterResult: CoverLetterResultSchema,
+  analysisResult: AnalysisResultSchema.optional(),
+});
+export type CoverLetterHistoryEntry = z.infer<typeof CoverLetterHistoryEntrySchema>;
+
+// ─── InterviewHistoryEntry ──────────────────────────
+
+export const InterviewHistoryEntrySchema = z.object({
+  id: z.string(),
+  jobTitle: z.string(),
+  companyName: z.string(),
+  jobUrl: z.string().optional(),
+  focusPosition: z.string().optional(),
+  savedAt: z.number(),
+  jdText: z.string(),
+  interviewResult: InterviewResultSchema,
+  analysisResult: AnalysisResultSchema.optional(),
+});
+export type InterviewHistoryEntry = z.infer<typeof InterviewHistoryEntrySchema>;
+
 // ─── API Request Schemas ────────────────────────────
 
 export const CrawlRequestSchema = z.object({

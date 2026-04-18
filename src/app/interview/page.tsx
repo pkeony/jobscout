@@ -4,7 +4,13 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractInterviewJson } from "@/lib/prompts/interview";
-import { AnalysisResultSchema, type InterviewResult, type InterviewQuestion } from "@/types";
+import {
+  AnalysisResultSchema,
+  type AnalysisResult,
+  type InterviewResult,
+  type InterviewQuestion,
+} from "@/types";
+import { addInterviewHistoryEntry } from "@/lib/storage/interview-history";
 import type { StreamEvent } from "@/lib/ai/types";
 
 function readAnalysisExtras(): Record<string, unknown> {
@@ -245,11 +251,46 @@ export default function InterviewPage() {
     }
   }, [status, fullText, cachedResult]);
 
-  // 완료 시 캐싱
+  // 완료 시 캐싱 + 히스토리 저장
   useEffect(() => {
-    if (status === "done" && interviewResult && !cachedResult) {
-      sessionStorage.setItem("jobscout:interviewResult", JSON.stringify(interviewResult));
+    if (status !== "done" || !interviewResult || cachedResult) return;
+
+    sessionStorage.setItem("jobscout:interviewResult", JSON.stringify(interviewResult));
+
+    const jdTextRaw = sessionStorage.getItem("jobscout:jdText");
+    if (!jdTextRaw) return;
+
+    const crawlMetaRaw = sessionStorage.getItem("jobscout:crawlMeta");
+    let jobTitle = "직무명 미확인";
+    let companyName = "회사명 미확인";
+    let jobUrl: string | undefined;
+    try {
+      if (crawlMetaRaw) {
+        const parsed = JSON.parse(crawlMetaRaw) as {
+          title?: string;
+          company?: string;
+          url?: string;
+        };
+        if (parsed.title) jobTitle = parsed.title;
+        if (parsed.company) companyName = parsed.company;
+        jobUrl = parsed.url || undefined;
+      }
+    } catch {
+      // ignore
     }
+    const focusPosition =
+      sessionStorage.getItem("jobscout:focusPosition") || undefined;
+    const extras = readAnalysisExtras();
+
+    addInterviewHistoryEntry({
+      jobTitle,
+      companyName,
+      jobUrl,
+      focusPosition,
+      jdText: jdTextRaw,
+      interviewResult,
+      analysisResult: extras.analysisResult as AnalysisResult | undefined,
+    });
   }, [status, interviewResult, cachedResult]);
 
   const effectiveStatus = cachedResult ? "done" : status;

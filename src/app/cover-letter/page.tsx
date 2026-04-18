@@ -7,11 +7,13 @@ import {
   AnalysisResultSchema,
   CoverLetterResultSchema,
   ImproveCoverLetterResultSchema,
+  type AnalysisResult,
   type CoverLetterResult,
   type ImproveCoverLetterResult,
 } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
 import { getActiveProfile } from "@/lib/storage/profiles";
+import { addCoverLetterHistoryEntry } from "@/lib/storage/cover-letter-history";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FadeIn } from "@/components/motion";
@@ -90,9 +92,15 @@ function CoverLetterSkeleton() {
 function CoverLetterView({ result }: { result: CoverLetterResult }) {
   return (
     <div className="space-y-8">
-      <div className="border-b-2 border-foreground/20 pb-4">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
-          {result.companyName} · {result.jobTitle}
+      <div className="border-b-2 border-foreground/20 pb-5 space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
+          지원 대상
+        </p>
+        <h3 className="font-heading text-2xl md:text-3xl font-black leading-tight">
+          {result.companyName}
+        </h3>
+        <p className="text-sm text-muted-foreground font-medium">
+          {result.jobTitle}
         </p>
       </div>
       {result.sections.map((section, i) => (
@@ -130,12 +138,7 @@ export default function CoverLetterPage() {
     }
     setJdText(text);
 
-    const activeSlot = getActiveProfile();
-    if (!activeSlot) {
-      router.replace("/match");
-      return;
-    }
-
+    // 캐시(히스토리 복원 포함)가 있으면 profile 없이도 바로 표시.
     const cached = sessionStorage.getItem("jobscout:coverLetterResult");
     if (cached) {
       const parsed = safeParseCoverLetter(cached);
@@ -145,6 +148,12 @@ export default function CoverLetterPage() {
       }
       // stale 또는 구 포맷(마크다운) — 조용히 삭제 후 재생성 트리거
       sessionStorage.removeItem("jobscout:coverLetterResult");
+    }
+
+    const activeSlot = getActiveProfile();
+    if (!activeSlot) {
+      router.replace("/match");
+      return;
     }
 
     if (!startedRef.current) {
@@ -159,12 +168,41 @@ export default function CoverLetterPage() {
   }, [status, fullText]);
 
   useEffect(() => {
-    if (status === "done" && liveResult && !cachedResult) {
-      sessionStorage.setItem(
-        "jobscout:coverLetterResult",
-        JSON.stringify(liveResult),
-      );
+    if (status !== "done" || !liveResult || cachedResult) return;
+
+    sessionStorage.setItem(
+      "jobscout:coverLetterResult",
+      JSON.stringify(liveResult),
+    );
+
+    const jdTextRaw = sessionStorage.getItem("jobscout:jdText");
+    if (!jdTextRaw) return;
+
+    const crawlMetaRaw = sessionStorage.getItem("jobscout:crawlMeta");
+    let jobUrl: string | undefined;
+    try {
+      if (crawlMetaRaw) {
+        const parsed = JSON.parse(crawlMetaRaw) as { url?: string };
+        jobUrl = parsed.url || undefined;
+      }
+    } catch {
+      // ignore
     }
+    const focusPosition =
+      sessionStorage.getItem("jobscout:focusPosition") || undefined;
+    const profile = getActiveProfile();
+    const extras = readAnalysisExtras();
+
+    addCoverLetterHistoryEntry({
+      jobTitle: liveResult.jobTitle,
+      companyName: liveResult.companyName,
+      jobUrl,
+      focusPosition,
+      profileLabel: profile?.label ?? "프로필 미지정",
+      jdText: jdTextRaw,
+      coverLetterResult: liveResult,
+      analysisResult: extras.analysisResult as AnalysisResult | undefined,
+    });
   }, [status, liveResult, cachedResult]);
 
   const effectiveStatus = cachedResult ? "done" : status;
