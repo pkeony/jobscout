@@ -141,6 +141,39 @@ export const MatchHistoryEntrySchema = z.object({
 });
 export type MatchHistoryEntry = z.infer<typeof MatchHistoryEntrySchema>;
 
+// ─── CoverLetterResult (JSON) ────────────────────────
+
+export const CoverLetterSectionSchema = z.object({
+  heading: z.string().min(1),
+  paragraphs: z.array(z.string().min(1)).min(1),
+});
+export type CoverLetterSection = z.infer<typeof CoverLetterSectionSchema>;
+
+export const CoverLetterResultSchema = z.object({
+  companyName: z.string(),
+  jobTitle: z.string(),
+  sections: z.array(CoverLetterSectionSchema).min(3).max(6),
+});
+export type CoverLetterResult = z.infer<typeof CoverLetterResultSchema>;
+
+// ─── ImproveCoverLetterResult (JSON) ─────────────────
+
+export const ImproveSuggestionSchema = z.object({
+  heading: z.string(),
+  original: z.string(),
+  revised: z.string(),
+  reason: z.string(),
+});
+export type ImproveSuggestion = z.infer<typeof ImproveSuggestionSchema>;
+
+export const ImproveCoverLetterResultSchema = z.object({
+  overallComment: z.string(),
+  suggestions: z.array(ImproveSuggestionSchema).min(1),
+  missingFromJd: z.array(z.string()),
+  revised: CoverLetterResultSchema,
+});
+export type ImproveCoverLetterResult = z.infer<typeof ImproveCoverLetterResultSchema>;
+
 // ─── InterviewResult ────────────────────────────────
 
 export const InterviewQuestionSchema = z.object({
@@ -151,10 +184,24 @@ export const InterviewQuestionSchema = z.object({
 });
 export type InterviewQuestion = z.infer<typeof InterviewQuestionSchema>;
 
-export const InterviewResultSchema = z.object({
-  questions: z.array(InterviewQuestionSchema),
-  tips: z.array(z.string()),
-});
+// 개수 분포 불변식: technical 5 / behavioral 3 / situational 2, tips 4
+// SDK responseSchema + 프롬프트 셀프체크가 1차, 이 refine이 최종 방어선.
+export const InterviewResultSchema = z
+  .object({
+    questions: z.array(InterviewQuestionSchema).length(10),
+    tips: z.array(z.string()).length(4),
+  })
+  .refine(
+    (r) => {
+      const t = r.questions.filter((q) => q.category === "technical").length;
+      const b = r.questions.filter((q) => q.category === "behavioral").length;
+      const s = r.questions.filter((q) => q.category === "situational").length;
+      return t === 5 && b === 3 && s === 2;
+    },
+    {
+      message: "면접 질문 카테고리 분포는 technical 5, behavioral 3, situational 2이어야 합니다",
+    },
+  );
 export type InterviewResult = z.infer<typeof InterviewResultSchema>;
 
 // ─── API Request Schemas ────────────────────────────

@@ -1,17 +1,45 @@
 import type { AiMessage } from "@/lib/ai/types";
+import {
+  ImproveCoverLetterResultSchema,
+  type ImproveCoverLetterResult,
+} from "@/types";
+
+export const PROMPT_VERSION = "improve-cover-letter@v1.0.0-2026-04-19";
 
 export const IMPROVE_COVER_LETTER_SYSTEM_PROMPT = `당신은 한국 IT 업계 자기소개서 첨삭 전문가입니다.
-기존 자기소개서를 채용공고(JD)에 맞게 개선 제안을 합니다.
+기존 자기소개서를 채용공고(JD)에 맞게 개선하고 JSON으로 반환합니다.
 
 ## 출력 규칙
-1. 마크다운 형식으로 작성하세요.
-2. 한국어로 작성하세요.
+1. 반드시 유효한 JSON만 출력. 마크다운 코드블록(\`\`\`) 금지.
+2. 아래 스키마를 정확히 따르세요.
+3. 한국어로 작성.
 
-## 구조
-1. **총평** — 현재 자소서의 강점/약점 요약 (2-3문장)
-2. **수정 제안** — 섹션별로 구체적 수정 사항 (원문 인용 → 수정안)
-3. **추가 제안** — JD에서 요구하지만 자소서에 빠진 내용
-4. **수정된 전체 자소서** — 개선 사항을 반영한 완성본`;
+## JSON 스키마
+{
+  "overallComment": "총평 (2-3문장, 강점·약점 요약)",
+  "suggestions": [
+    {
+      "heading": "해당 섹션 제목",
+      "original": "원문 인용 (1-2문장)",
+      "revised": "수정안",
+      "reason": "고치는 이유 (1문장)"
+    }
+  ],
+  "missingFromJd": ["JD에 있는데 자소서엔 빠진 요소들"],
+  "revised": {
+    "companyName": "...",
+    "jobTitle": "...",
+    "sections": [
+      { "heading": "...", "paragraphs": ["..."] }
+    ]
+  }
+}
+
+## revised 작성 규칙
+- sections 는 정확히 4개, 순서·heading 고정: "지원 동기", "핵심 역량", "성장 경험", "입사 후 포부"
+- 각 paragraphs 는 2~3개 문단
+- 원문의 사실을 왜곡하지 말고, JD와의 연결 고리를 강화하는 방향으로 편집
+- JD에 있는 내용이라도 지원자가 실제 하지 않은 경험은 만들어내지 마세요`;
 
 export function buildImproveCoverLetterMessages(
   coverLetterText: string,
@@ -29,4 +57,16 @@ ${jdText}
 ${coverLetterText}`,
     },
   ];
+}
+
+export function extractImproveCoverLetterJson(raw: string): ImproveCoverLetterResult {
+  let cleaned = raw.trim();
+
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1].trim();
+  }
+
+  const parsed: unknown = JSON.parse(cleaned);
+  return ImproveCoverLetterResultSchema.parse(parsed);
 }
