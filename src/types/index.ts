@@ -212,13 +212,13 @@ export const CrawlRequestSchema = z.object({
 export type CrawlRequest = z.infer<typeof CrawlRequestSchema>;
 
 export const AnalyzeRequestSchema = z.object({
-  text: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  text: z.string().min(50, "채용공고 텍스트는 최소 50자 이상이어야 합니다"),
   focusPosition: z.string().optional(),
 });
 export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
 
 export const MatchRequestSchema = z.object({
-  jdText: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  jdText: z.string().min(50, "채용공고 텍스트는 최소 50자 이상이어야 합니다"),
   profile: UserProfileSchema,
   analysisResult: AnalysisResultSchema.optional(),
   focusPosition: z.string().optional(),
@@ -226,7 +226,7 @@ export const MatchRequestSchema = z.object({
 export type MatchRequest = z.infer<typeof MatchRequestSchema>;
 
 export const CoverLetterRequestSchema = z.object({
-  jdText: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  jdText: z.string().min(50, "채용공고 텍스트는 최소 50자 이상이어야 합니다"),
   profile: UserProfileSchema,
   analysisResult: AnalysisResultSchema.optional(),
   focusPosition: z.string().optional(),
@@ -234,7 +234,7 @@ export const CoverLetterRequestSchema = z.object({
 export type CoverLetterRequest = z.infer<typeof CoverLetterRequestSchema>;
 
 export const InterviewRequestSchema = z.object({
-  jdText: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  jdText: z.string().min(50, "채용공고 텍스트는 최소 50자 이상이어야 합니다"),
   analysisResult: AnalysisResultSchema.optional(),
   focusPosition: z.string().optional(),
 });

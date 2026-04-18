@@ -393,16 +393,112 @@ function ImproveSection({ jdText }: { jdText: string }) {
     setTimeout(() => setImproveCopied(false), 2000);
   }, [improveResult]);
 
+  // 결과가 도착하면 단일 컬럼 풀폭 레이아웃으로 전환 — 좌측 업로드 존이 비어 보이는 문제 해결.
+  if (improveResult) {
+    return (
+      <div className="border-t-4 border-foreground p-8 space-y-8 bg-muted relative">
+        <div className="flex flex-wrap gap-4 justify-between items-end pb-4 border-b-2 border-foreground/20">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold mb-1">
+              첨삭 완료
+            </p>
+            <h2 className="font-heading text-3xl font-bold italic">
+              기존 자소서 개선 결과
+            </h2>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleImproveCopy}>
+              {improveCopied ? "복사됨!" : "수정본 복사"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={resetImprove}>
+              다른 자소서
+            </Button>
+          </div>
+        </div>
+
+        <section className="bg-card p-6 border-l-4 border-foreground">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold mb-2">
+            총평
+          </p>
+          <p className="text-sm leading-relaxed">{improveResult.overallComment}</p>
+        </section>
+
+        {improveResult.missingFromJd.length > 0 && (
+          <section className="space-y-3">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
+              채용공고에 있으나 자소서에 빠진 요소 ({improveResult.missingFromJd.length})
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {improveResult.missingFromJd.map((m, i) => (
+                <span
+                  key={i}
+                  className="text-[11px] bg-accent/20 text-accent-foreground px-2 py-1 uppercase tracking-wider"
+                >
+                  {m}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {improveResult.suggestions.length > 0 && (
+          <section className="space-y-3">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
+              수정 제안 ({improveResult.suggestions.length})
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {improveResult.suggestions.map((s, i) => (
+                <div key={i} className="bg-card border border-border/40 p-4 space-y-2.5 flex flex-col">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                    {s.heading}
+                  </p>
+                  <div className="text-xs leading-relaxed space-y-1">
+                    <p>
+                      <span className="font-semibold text-muted-foreground">원문: </span>
+                      {s.original}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-secondary">수정: </span>
+                      {s.revised}
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground italic pt-2 border-t border-border/30 mt-auto">
+                    → {s.reason}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-3">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
+            수정된 전체 자소서
+          </p>
+          <div className="bg-card p-8 border-2 border-foreground/10">
+            <CoverLetterView result={improveResult.revised} />
+          </div>
+        </section>
+
+        <div className="absolute bottom-4 right-8 opacity-[0.03] select-none pointer-events-none">
+          <span className="font-heading italic font-black text-7xl">EDIT</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 업로드 전 / 진행 / 에러 상태 — 중앙 단일 컬럼으로 시선 집중.
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t-4 border-foreground">
-      {/* 좌측: 업로드 */}
-      <div className="p-8 bg-muted/30 border-r-0 md:border-r-2 border-border">
-        <h2 className="font-heading text-2xl font-bold italic mb-2">
-          기존 자소서 첨삭
-        </h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          이미 작성한 자소서가 있다면 파일을 업로드하여 채용공고 기반 개선 제안을 받아보세요.
-        </p>
+    <div className="border-t-4 border-foreground p-8 bg-muted/30">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h2 className="font-heading text-2xl font-bold italic mb-2">
+            기존 자소서 첨삭
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            이미 작성한 자소서가 있다면 파일을 업로드하여 채용공고 기반 개선 제안을 받아보세요.
+          </p>
+        </div>
 
         {improveStatus === "idle" && (
           <FileDropZone
@@ -414,7 +510,7 @@ function ImproveSection({ jdText }: { jdText: string }) {
         )}
 
         {improveStatus === "streaming" && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 py-8">
             <div className="h-2.5 w-2.5 bg-secondary animate-pulse" />
             <span className="text-sm text-muted-foreground">
               자소서 분석 및 개선 제안 작성 중...
@@ -430,91 +526,6 @@ function ImproveSection({ jdText }: { jdText: string }) {
             <Button variant="outline" size="sm" onClick={resetImprove}>
               다시 시도
             </Button>
-          </div>
-        )}
-      </div>
-
-      {/* 우측: 개선 결과 */}
-      <div className="p-8 bg-muted relative">
-        <h2 className="font-heading text-2xl font-bold italic mb-2">
-          개선 제안
-        </h2>
-        {!improveText && improveStatus !== "streaming" && (
-          <p className="text-sm text-muted-foreground">
-            자소서를 업로드하면 개선 제안이 여기에 표시됩니다.
-          </p>
-        )}
-
-        {improveResult && (
-          <div className="space-y-6">
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
-                총평
-              </p>
-              <p className="text-sm leading-relaxed">{improveResult.overallComment}</p>
-            </section>
-
-            {improveResult.suggestions.length > 0 && (
-              <section className="space-y-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
-                  수정 제안 ({improveResult.suggestions.length})
-                </p>
-                <div className="space-y-3">
-                  {improveResult.suggestions.map((s, i) => (
-                    <div key={i} className="border-l-4 border-foreground/20 pl-4 py-2 bg-card">
-                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-                        {s.heading}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        <span className="font-semibold">원문:</span> {s.original}
-                      </p>
-                      <p className="text-xs mt-1">
-                        <span className="font-semibold text-secondary">수정:</span> {s.revised}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-1 italic">
-                        → {s.reason}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {improveResult.missingFromJd.length > 0 && (
-              <section className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
-                  JD에 있으나 자소서에 빠진 요소
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {improveResult.missingFromJd.map((m, i) => (
-                    <span
-                      key={i}
-                      className="text-[10px] bg-accent/20 text-accent-foreground px-2 py-1 uppercase tracking-wider"
-                    >
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
-                수정된 전체 자소서
-              </p>
-              <div className="bg-card p-4 border border-border/40">
-                <CoverLetterView result={improveResult.revised} />
-              </div>
-            </section>
-
-            <div className="flex gap-2 pt-3 border-t border-border/30">
-              <Button variant="outline" size="sm" onClick={handleImproveCopy}>
-                {improveCopied ? "복사됨!" : "수정본 복사"}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={resetImprove}>
-                다른 자소서 개선
-              </Button>
-            </div>
           </div>
         )}
 
@@ -534,10 +545,6 @@ function ImproveSection({ jdText }: { jdText: string }) {
             </Button>
           </div>
         )}
-
-        <div className="absolute bottom-8 right-8 opacity-[0.03] select-none pointer-events-none">
-          <span className="font-heading italic font-black text-7xl">EDIT</span>
-        </div>
       </div>
     </div>
   );

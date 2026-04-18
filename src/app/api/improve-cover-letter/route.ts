@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   if (!file || !jdTextRaw) {
     return NextResponse.json(
-      { error: "파일과 JD가 필요합니다" },
+      { error: "파일과 채용공고가 필요합니다" },
       { status: 400 },
     );
   }

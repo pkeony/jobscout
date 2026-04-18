@@ -613,7 +613,7 @@ export default function AnalyzePage() {
                 </button>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                입력한 포지션 기준으로 JD 안에서 해당 역할만 집중 추출해 분석합니다.
+                입력한 포지션 기준으로 채용공고 안에서 해당 역할만 집중 추출해 분석합니다.
               </p>
             </div>
           </FadeIn>
