@@ -277,6 +277,7 @@ export default function AnalyzePage() {
     positions: string[];
     meta: CrawlMeta;
   } | null>(null);
+  const [manualPosition, setManualPosition] = useState("");
 
   const startAnalysis = useCallback(
     (text: string, meta?: CrawlMeta, focusPosition?: string) => {
@@ -333,11 +334,12 @@ export default function AnalyzePage() {
       setCrawlStatus("idle");
       const meta = { title: data.title, company: data.company, url: data.url };
       const positions = data.positions ?? [];
-      if (positions.length > 1) {
-        // 다중 포지션 → 피커 띄우고 사용자 선택 대기
-        setPendingCrawl({ text: data.text, positions, meta });
-      } else {
+      if (positions.length === 1) {
+        // 단일 포지션 → 바로 분석
         startAnalysis(data.text, meta);
+      } else {
+        // 0개(감지 실패) 또는 2개 이상(다중) → 피커 화면으로
+        setPendingCrawl({ text: data.text, positions, meta });
       }
     } catch (err) {
       setCrawlStatus("error");
@@ -348,6 +350,7 @@ export default function AnalyzePage() {
   const handlePositionSelect = useCallback(
     (position: string | null) => {
       if (!pendingCrawl) return;
+      setManualPosition("");
       startAnalysis(
         pendingCrawl.text,
         pendingCrawl.meta,
@@ -356,6 +359,12 @@ export default function AnalyzePage() {
     },
     [pendingCrawl, startAnalysis],
   );
+
+  const handleManualPositionSubmit = useCallback(() => {
+    const trimmed = manualPosition.trim();
+    if (!trimmed || trimmed.length < 2) return;
+    handlePositionSelect(trimmed);
+  }, [manualPosition, handlePositionSelect]);
 
   const handleTextSubmit = useCallback(() => {
     if (!textInput.trim() || textInput.trim().length < 50) return;
@@ -505,57 +514,112 @@ export default function AnalyzePage() {
 
   /* ─── jdText 없을 때: 입력 폼 ─── */
   if (!jdText && pendingCrawl) {
+    const hasPositions = pendingCrawl.positions.length > 0;
+    const manualTrimmed = manualPosition.trim();
+    const manualValid = manualTrimmed.length >= 2;
     return (
-      <AppShell ribbonLeft={<>포지션 선택</>} ribbonRight={<>{pendingCrawl.positions.length}개 포지션 감지</>}>
+      <AppShell
+        ribbonLeft={<>포지션 선택</>}
+        ribbonRight={
+          hasPositions
+            ? <>{pendingCrawl.positions.length}개 포지션 감지</>
+            : <>포지션 자동 감지 실패</>
+        }
+      >
         <div className="max-w-4xl mx-auto space-y-6">
           <FadeIn>
             <div className="dot-matrix-texture p-8 border-2 border-primary/10">
               <div className="flex items-center gap-2 mb-3">
                 <span className="h-2 w-2 bg-secondary" />
                 <span className="text-xs text-secondary uppercase tracking-[0.2em] font-bold">
-                  다중 포지션 감지됨
+                  {hasPositions ? "다중 포지션 감지됨" : "포지션 자동 감지 실패"}
                 </span>
               </div>
               <h1 className="font-heading text-4xl md:text-5xl text-primary font-black tracking-tighter leading-none mb-2">
                 {pendingCrawl.meta.title}
               </h1>
               <p className="text-muted-foreground text-sm">
-                {pendingCrawl.meta.company} · 관심 포지션을 선택하면 해당 포지션만 집중 분석합니다.
+                {pendingCrawl.meta.company}
+                {hasPositions
+                  ? " · 관심 포지션을 선택하면 해당 포지션만 집중 분석합니다."
+                  : " · 공고에서 포지션을 자동 추출하지 못했어요. 직접 입력하거나 전체를 그대로 분석할 수 있어요."}
               </p>
             </div>
           </FadeIn>
 
-          <FadeIn delay={0.05}>
-            <ul className="space-y-2">
-              {pendingCrawl.positions.map((position, i) => (
-                <li key={`${position}-${i}`}>
-                  <button
-                    onClick={() => handlePositionSelect(position)}
-                    className="w-full flex items-center gap-4 p-5 bg-card hover:bg-secondary/5 border-l-4 border-transparent hover:border-secondary transition-all duration-75 text-left group"
-                  >
-                    <span className="font-heading italic font-black text-2xl text-secondary/60 tabular-nums shrink-0 min-w-[2.5rem]">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className="flex-1 text-base text-foreground font-medium">{position}</span>
-                    <span className="text-xs uppercase tracking-widest text-muted-foreground group-hover:text-secondary transition-colors">
-                      선택 →
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+          {hasPositions && (
+            <FadeIn delay={0.05}>
+              <ul className="space-y-2">
+                {pendingCrawl.positions.map((position, i) => (
+                  <li key={`${position}-${i}`}>
+                    <button
+                      onClick={() => handlePositionSelect(position)}
+                      className="w-full flex items-center gap-4 p-5 bg-card hover:bg-secondary/5 border-l-4 border-transparent hover:border-secondary transition-all duration-75 text-left group"
+                    >
+                      <span className="font-heading italic font-black text-2xl text-secondary/60 tabular-nums shrink-0 min-w-[2.5rem]">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="flex-1 text-base text-foreground font-medium">{position}</span>
+                      <span className="text-xs uppercase tracking-widest text-muted-foreground group-hover:text-secondary transition-colors">
+                        선택 →
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </FadeIn>
+          )}
+
+          <FadeIn delay={hasPositions ? 0.1 : 0.05}>
+            <div className="p-5 border-2 border-dashed border-primary/15 bg-card/50">
+              <label
+                htmlFor="manual-position"
+                className="block text-xs uppercase tracking-[0.2em] font-bold text-muted-foreground mb-3"
+              >
+                {hasPositions ? "목록에 없는 포지션 직접 입력" : "관심 포지션 직접 입력"}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="manual-position"
+                  type="text"
+                  value={manualPosition}
+                  onChange={(e) => setManualPosition(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && manualValid) handleManualPositionSubmit();
+                  }}
+                  placeholder="예: 백엔드 엔지니어 / 기술영업 경기 / Senior iOS Engineer"
+                  className="flex-1 px-4 py-3 bg-background border border-border focus:border-secondary focus:outline-none text-base"
+                  maxLength={80}
+                />
+                <button
+                  onClick={handleManualPositionSubmit}
+                  disabled={!manualValid}
+                  className="px-5 py-3 bg-secondary text-secondary-foreground text-sm font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed hover:translate-y-[-2px] transition-transform duration-75"
+                >
+                  분석 →
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                입력한 포지션 기준으로 JD 안에서 해당 역할만 집중 추출해 분석합니다.
+              </p>
+            </div>
           </FadeIn>
 
-          <FadeIn delay={0.1}>
+          <FadeIn delay={0.15}>
             <div className="flex items-center justify-between gap-4 pt-4 border-t border-border/40">
               <button
                 onClick={() => handlePositionSelect(null)}
                 className="text-sm text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4 transition-colors"
               >
-                전체 포지션 한 번에 분석 (권장하지 않음)
+                {hasPositions
+                  ? "전체 포지션 한 번에 분석 (권장하지 않음)"
+                  : "전체 공고 그대로 분석"}
               </button>
               <button
-                onClick={() => setPendingCrawl(null)}
+                onClick={() => {
+                  setPendingCrawl(null);
+                  setManualPosition("");
+                }}
                 className="text-xs uppercase tracking-widest text-muted-foreground hover:text-destructive transition-colors"
               >
                 취소
