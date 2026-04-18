@@ -12,6 +12,8 @@ const NAV_ITEMS = [
   { href: "/match", label: "프로필 매칭" },
   { href: "/cover-letter", label: "자소서" },
   { href: "/interview", label: "면접 질문" },
+  { href: "/profiles", label: "프로필 관리" },
+  { href: "/history", label: "매칭 히스토리" },
 ];
 
 interface AppShellProps {

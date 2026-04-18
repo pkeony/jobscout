@@ -1,11 +1,19 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractMatchJson } from "@/lib/prompts/match";
-import { AnalysisResultSchema, type MatchResult, type SkillMatch, type UserProfile } from "@/types";
+import { AnalysisResultSchema, type MatchResult, type ProfileSlot, type SkillMatch, type UserProfile } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
+import {
+  addProfile,
+  getActiveProfile,
+  loadProfiles,
+  setActiveProfileId,
+  updateProfile,
+} from "@/lib/storage/profiles";
 
 function readAnalysisExtras(): Record<string, unknown> {
   const extras: Record<string, unknown> = {};
@@ -311,10 +319,16 @@ function MatchSkeleton() {
 export default function MatchPage() {
   const router = useRouter();
   const [jdText, setJdText] = useState<string | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [activeSlot, setActiveSlot] = useState<ProfileSlot | null>(null);
+  const [allSlots, setAllSlots] = useState<ProfileSlot[]>([]);
 
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/match");
+
+  const refreshSlots = useCallback(() => {
+    setAllSlots(loadProfiles());
+    setActiveSlot(getActiveProfile());
+  }, []);
 
   useEffect(() => {
     const text = sessionStorage.getItem("jobscout:jdText");
@@ -323,26 +337,33 @@ export default function MatchPage() {
       return;
     }
     setJdText(text);
+    refreshSlots();
+  }, [router, refreshSlots]);
 
-    const savedProfile = localStorage.getItem("jobscout:profile");
-    if (savedProfile) {
-      setProfile(JSON.parse(savedProfile) as UserProfile);
-    }
-  }, [router]);
+  const handleSelectSlot = useCallback(
+    (id: string) => {
+      setActiveProfileId(id);
+      refreshSlots();
+    },
+    [refreshSlots],
+  );
 
   const handleProfileSubmit = useCallback(
     (submittedProfile: UserProfile) => {
-      localStorage.setItem(
-        "jobscout:profile",
-        JSON.stringify(submittedProfile),
-      );
-      setProfile(submittedProfile);
+      // 활성 슬롯이 있으면 그 슬롯의 profile만 업데이트, 없으면 새 슬롯 생성
+      if (activeSlot) {
+        updateProfile(activeSlot.id, { profile: submittedProfile });
+      } else {
+        const created = addProfile("기본 프로필", submittedProfile);
+        setActiveProfileId(created.id);
+      }
+      refreshSlots();
 
       if (jdText) {
         start({ jdText, profile: submittedProfile, ...readAnalysisExtras() });
       }
     },
-    [jdText, start],
+    [activeSlot, jdText, start, refreshSlots],
   );
 
   const matchResult = useMemo<MatchResult | null>(() => {
@@ -373,7 +394,6 @@ export default function MatchPage() {
 
   const handleRetry = () => {
     reset();
-    setProfile(null);
   };
 
   if (!jdText) {
@@ -404,9 +424,36 @@ export default function MatchPage() {
                 이력서 또는 프로필 정보를 입력하면 채용공고와의 적합도를 분석합니다.
               </p>
             </div>
+            {allSlots.length > 0 && (
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 p-4 border-2 border-foreground/10 bg-muted/30">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">
+                    프로필
+                  </span>
+                  <select
+                    value={activeSlot?.id ?? ""}
+                    onChange={(e) => handleSelectSlot(e.target.value)}
+                    className="flex-1 min-w-0 bg-card border-2 border-foreground/20 px-3 py-2 text-sm font-medium focus:border-secondary focus:outline-none"
+                  >
+                    {allSlots.map((slot) => (
+                      <option key={slot.id} value={slot.id}>
+                        {slot.label} · 스킬 {slot.profile.skills.length}개
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Link
+                  href="/profiles"
+                  className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4 shrink-0"
+                >
+                  프로필 관리 →
+                </Link>
+              </div>
+            )}
             <ProfileForm
+              key={activeSlot?.id ?? "empty"}
               initialProfile={
-                profile ?? {
+                activeSlot?.profile ?? {
                   skills: [],
                   experience: "",
                   education: undefined,

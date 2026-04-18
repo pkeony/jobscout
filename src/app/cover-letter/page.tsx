@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
-import { AnalysisResultSchema, type UserProfile } from "@/types";
+import { AnalysisResultSchema } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
+import { getActiveProfile } from "@/lib/storage/profiles";
 
 function readAnalysisExtras(): Record<string, unknown> {
   const extras: Record<string, unknown> = {};
@@ -79,8 +80,8 @@ export default function CoverLetterPage() {
     }
     setJdText(text);
 
-    const savedProfile = localStorage.getItem("jobscout:profile");
-    if (!savedProfile) {
+    const activeSlot = getActiveProfile();
+    if (!activeSlot) {
       router.replace("/match");
       return;
     }
@@ -94,8 +95,7 @@ export default function CoverLetterPage() {
 
     if (!startedRef.current) {
       startedRef.current = true;
-      const profile = JSON.parse(savedProfile) as UserProfile;
-      start({ jdText: text, profile, ...readAnalysisExtras() });
+      start({ jdText: text, profile: activeSlot.profile, ...readAnalysisExtras() });
     }
   }, [router, start]);
 
@@ -121,11 +121,10 @@ export default function CoverLetterPage() {
     reset();
     startedRef.current = false;
     const text = sessionStorage.getItem("jobscout:jdText");
-    const savedProfile = localStorage.getItem("jobscout:profile");
-    if (text && savedProfile) {
+    const activeSlot = getActiveProfile();
+    if (text && activeSlot) {
       startedRef.current = true;
-      const profile = JSON.parse(savedProfile) as UserProfile;
-      start({ jdText: text, profile, ...readAnalysisExtras() });
+      start({ jdText: text, profile: activeSlot.profile, ...readAnalysisExtras() });
     }
   };
 

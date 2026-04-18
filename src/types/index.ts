@@ -66,6 +66,17 @@ export const UserProfileSchema = z.object({
 });
 export type UserProfile = z.infer<typeof UserProfileSchema>;
 
+// ─── ProfileSlot (멀티 슬롯 + 라벨) ─────────────────
+
+export const ProfileSlotSchema = z.object({
+  id: z.string(),
+  label: z.string().min(1).max(40),
+  profile: UserProfileSchema,
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+export type ProfileSlot = z.infer<typeof ProfileSlotSchema>;
+
 // ─── MatchResult ────────────────────────────────────
 
 export const SkillMatchSchema = z.object({
@@ -99,6 +110,22 @@ export const MatchResultSchema = z.object({
   advice: z.string(),
 });
 export type MatchResult = z.infer<typeof MatchResultSchema>;
+
+// ─── MatchHistoryEntry ──────────────────────────────
+
+export const MatchHistoryEntrySchema = z.object({
+  id: z.string(),
+  jobTitle: z.string(),
+  companyName: z.string(),
+  jobUrl: z.string().optional(),
+  focusPosition: z.string().optional(),
+  profileLabel: z.string(),
+  savedAt: z.number(),
+  jdText: z.string(),
+  matchResult: MatchResultSchema,
+  analysisResult: AnalysisResultSchema.optional(),
+});
+export type MatchHistoryEntry = z.infer<typeof MatchHistoryEntrySchema>;
 
 // ─── InterviewResult ────────────────────────────────
 
