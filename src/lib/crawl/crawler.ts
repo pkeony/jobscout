@@ -90,12 +90,66 @@ async function fetchHtml(url: string): Promise<string> {
     throw new CrawlError("HTML 페이지가 아닙니다", 400);
   }
 
-  const text = await res.text();
-  if (text.length > MAX_BODY_SIZE) {
+  const buffer = await res.arrayBuffer();
+  if (buffer.byteLength > MAX_BODY_SIZE) {
     throw new CrawlError("페이지 크기가 너무 큽니다", 400);
   }
 
-  return text;
+  return decodeHtml(buffer, contentType);
+}
+
+/**
+ * HTML 인코딩 디코딩.
+ * 1. Content-Type 헤더의 charset 우선
+ * 2. 없으면 UTF-8로 먼저 읽어서 <meta charset> 검사 (euc-kr, ks_c_5601 등 한국 레거시 사이트 대응)
+ * 3. 그래도 실패/미지원이면 UTF-8 폴백
+ */
+function decodeHtml(buffer: ArrayBuffer, contentType: string): string {
+  const headerCharset = extractCharset(contentType);
+  if (headerCharset && headerCharset !== "utf-8") {
+    const decoded = tryDecode(buffer, headerCharset);
+    if (decoded !== null) return decoded;
+  }
+
+  // UTF-8로 선디코딩 후 <meta http-equiv="Content-Type"> 또는 <meta charset>에서 charset 추출
+  const utf8 = new TextDecoder("utf-8").decode(buffer);
+  const metaCharset = extractMetaCharset(utf8);
+  if (metaCharset && metaCharset !== "utf-8") {
+    const decoded = tryDecode(buffer, metaCharset);
+    if (decoded !== null) return decoded;
+  }
+
+  return utf8;
+}
+
+function extractCharset(contentType: string): string | null {
+  const match = contentType.match(/charset\s*=\s*["']?([\w-]+)/i);
+  if (!match) return null;
+  return normalizeCharset(match[1]);
+}
+
+function extractMetaCharset(html: string): string | null {
+  const head = html.slice(0, 4096);
+  const explicit = head.match(/<meta[^>]+charset\s*=\s*["']?([\w-]+)/i);
+  if (explicit) return normalizeCharset(explicit[1]);
+  return null;
+}
+
+function normalizeCharset(raw: string): string {
+  const lower = raw.trim().toLowerCase();
+  // 한국 레거시 사이트가 쓰는 별칭들을 TextDecoder가 인식하는 표준 이름으로 매핑
+  if (lower === "ks_c_5601-1987" || lower === "ksc5601" || lower === "cp949") {
+    return "euc-kr";
+  }
+  return lower;
+}
+
+function tryDecode(buffer: ArrayBuffer, charset: string): string | null {
+  try {
+    return new TextDecoder(charset, { fatal: false }).decode(buffer);
+  } catch {
+    return null;
+  }
 }
 
 // ─── 사이트별 전용 파서 ────────────────────────────
@@ -272,7 +326,7 @@ function extractBody($: cheerio.CheerioAPI): string {
     '[class*="jobDescription"]',
     '[class*="job_description"]',
     '[class*="content"]',
-    ".description',",
+    ".description",
   ];
 
   for (const selector of contentSelectors) {
