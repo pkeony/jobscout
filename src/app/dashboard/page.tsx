@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 // 대시보드는 크롤링을 직접 수행하지 않고 /analyze 페이지로 URL만 전달.
@@ -14,7 +14,28 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FadeIn } from "@/components/motion";
-import { Search, Target, FileText, MessageCircle, Sparkles, BookOpen, Lightbulb } from "lucide-react";
+import { Search, Target, FileText, MessageCircle, Sparkles, BookOpen, Lightbulb, Clock } from "lucide-react";
+import { loadHistory } from "@/lib/storage/match-history";
+import type { MatchHistoryEntry } from "@/types";
+
+function scoreColor(score: number): string {
+  if (score >= 80) return "text-accent";
+  if (score >= 60) return "text-secondary";
+  if (score >= 40) return "text-foreground";
+  return "text-destructive";
+}
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}일 전`;
+  return new Date(ts).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
+}
 
 /* ─── 공지사항 데이터 ─── */
 const ANNOUNCEMENTS = [
@@ -100,6 +121,46 @@ const TIPS = [
 export default function DashboardPage() {
   const router = useRouter();
   const [url, setUrl] = useState("");
+  const [recentHistory, setRecentHistory] = useState<MatchHistoryEntry[]>([]);
+
+  useEffect(() => {
+    setRecentHistory(loadHistory().slice(0, 5));
+  }, []);
+
+  const handleReopenMatch = useCallback(
+    (entry: MatchHistoryEntry) => {
+      sessionStorage.setItem("jobscout:jdText", entry.jdText);
+      if (entry.jobUrl || entry.jobTitle) {
+        sessionStorage.setItem(
+          "jobscout:crawlMeta",
+          JSON.stringify({
+            title: entry.jobTitle,
+            company: entry.companyName,
+            url: entry.jobUrl ?? "",
+          }),
+        );
+      }
+      if (entry.focusPosition) {
+        sessionStorage.setItem("jobscout:focusPosition", entry.focusPosition);
+      } else {
+        sessionStorage.removeItem("jobscout:focusPosition");
+      }
+      if (entry.analysisResult) {
+        sessionStorage.setItem(
+          "jobscout:analyzeResult",
+          JSON.stringify(entry.analysisResult),
+        );
+      } else {
+        sessionStorage.removeItem("jobscout:analyzeResult");
+      }
+      sessionStorage.setItem(
+        "jobscout:matchResultRestore",
+        JSON.stringify(entry.matchResult),
+      );
+      router.push("/match");
+    },
+    [router],
+  );
 
   const handleUrlSubmit = useCallback(() => {
     if (!url.trim()) return;
@@ -168,6 +229,52 @@ export default function DashboardPage() {
             </div>
           </div>
         </FadeIn>
+
+        {/* ─── 최근 매칭 ─── */}
+        {recentHistory.length > 0 && (
+          <FadeIn delay={0.08}>
+            <div className="space-y-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h2 className="font-heading text-3xl text-primary font-black tracking-tight flex items-center gap-3">
+                    <Clock className="w-6 h-6 text-secondary" />
+                    최근 매칭
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    클릭해서 분석 결과를 다시 볼 수 있어요
+                  </p>
+                </div>
+                <Link
+                  href="/history"
+                  className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4"
+                >
+                  전체 {loadHistory().length}개 →
+                </Link>
+              </div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                {recentHistory.map((entry) => (
+                  <li key={entry.id}>
+                    <button
+                      onClick={() => handleReopenMatch(entry)}
+                      className="w-full p-4 bg-card border-2 border-foreground/10 hover:border-secondary text-left transition-all duration-75 hover:-translate-y-0.5"
+                    >
+                      <div className={`font-heading font-black text-3xl tabular-nums ${scoreColor(entry.matchResult.score)}`}>
+                        {entry.matchResult.score}
+                      </div>
+                      <p className="mt-2 text-sm font-bold line-clamp-1">{entry.companyName}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                        {entry.jobTitle}
+                      </p>
+                      <p className="mt-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+                        {relativeTime(entry.savedAt)} · {entry.profileLabel}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </FadeIn>
+        )}
 
         {/* ─── 기능 가이드 ─── */}
         <FadeIn delay={0.1}>

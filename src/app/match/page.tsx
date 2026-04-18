@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractMatchJson } from "@/lib/prompts/match";
-import { AnalysisResultSchema, type MatchResult, type ProfileSlot, type SkillMatch, type UserProfile } from "@/types";
+import { AnalysisResultSchema, MatchResultSchema, type AnalysisResult, type MatchResult, type ProfileSlot, type SkillMatch, type UserProfile } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
 import {
   addProfile,
@@ -14,6 +14,7 @@ import {
   setActiveProfileId,
   updateProfile,
 } from "@/lib/storage/profiles";
+import { addHistoryEntry } from "@/lib/storage/match-history";
 
 function readAnalysisExtras(): Record<string, unknown> {
   const extras: Record<string, unknown> = {};
@@ -321,6 +322,7 @@ export default function MatchPage() {
   const [jdText, setJdText] = useState<string | null>(null);
   const [activeSlot, setActiveSlot] = useState<ProfileSlot | null>(null);
   const [allSlots, setAllSlots] = useState<ProfileSlot[]>([]);
+  const [restoredResult, setRestoredResult] = useState<MatchResult | null>(null);
 
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/match");
@@ -338,6 +340,15 @@ export default function MatchPage() {
     }
     setJdText(text);
     refreshSlots();
+
+    // /history "다시 보기" 진입 — 캐시된 매칭 결과 복원, LLM 재호출 없음
+    const restoredRaw = sessionStorage.getItem("jobscout:matchResultRestore");
+    if (restoredRaw) {
+      sessionStorage.removeItem("jobscout:matchResultRestore");
+      try {
+        setRestoredResult(MatchResultSchema.parse(JSON.parse(restoredRaw)));
+      } catch { /* ignore */ }
+    }
   }, [router, refreshSlots]);
 
   const handleSelectSlot = useCallback(
@@ -367,13 +378,16 @@ export default function MatchPage() {
   );
 
   const matchResult = useMemo<MatchResult | null>(() => {
+    if (restoredResult) return restoredResult;
     if (status !== "done" || !fullText) return null;
     try {
       return extractMatchJson(fullText);
     } catch {
       return null;
     }
-  }, [status, fullText]);
+  }, [status, fullText, restoredResult]);
+
+  const effectiveStatus = restoredResult ? "done" : status;
 
   const sortedSkillMatches = useMemo(() => {
     if (!matchResult) return [];
@@ -392,6 +406,41 @@ export default function MatchPage() {
     }
   }, [matchResult]);
 
+  // 매칭 done 시 자동으로 히스토리에 추가 (재시도 시 idle로 돌아오면 ref 리셋되어 재저장 가능)
+  const historyAddedRef = useRef(false);
+  useEffect(() => {
+    if (status === "idle") historyAddedRef.current = false;
+  }, [status]);
+  useEffect(() => {
+    if (status !== "done" || !matchResult || !jdText || historyAddedRef.current) return;
+    historyAddedRef.current = true;
+
+    const metaStr = sessionStorage.getItem("jobscout:crawlMeta");
+    let meta: { title?: string; company?: string; url?: string } | null = null;
+    if (metaStr) {
+      try { meta = JSON.parse(metaStr); } catch { /* ignore */ }
+    }
+    const focus = sessionStorage.getItem("jobscout:focusPosition") ?? undefined;
+    let analysis: AnalysisResult | undefined;
+    const cachedAnalysis = sessionStorage.getItem("jobscout:analyzeResult");
+    if (cachedAnalysis) {
+      try {
+        analysis = AnalysisResultSchema.parse(JSON.parse(cachedAnalysis));
+      } catch { /* ignore */ }
+    }
+
+    addHistoryEntry({
+      jobTitle: meta?.title || analysis?.roleTitle || "제목 없음",
+      companyName: meta?.company || analysis?.companyInfo?.name || "회사명 미확인",
+      jobUrl: meta?.url || undefined,
+      focusPosition: focus,
+      profileLabel: activeSlot?.label ?? "이름 없는 프로필",
+      jdText,
+      matchResult,
+      analysisResult: analysis,
+    });
+  }, [status, matchResult, jdText, activeSlot]);
+
   const handleRetry = () => {
     reset();
   };
@@ -407,11 +456,11 @@ export default function MatchPage() {
   return (
     <AppShell
       ribbonLeft={<>프로필 매칭</>}
-      ribbonRight={<>STATUS: {status.toUpperCase()}</>}
+      ribbonRight={<>STATUS: {effectiveStatus.toUpperCase()}</>}
     >
       <div className="max-w-6xl mx-auto space-y-0">
         {/* ───────── 프로필 입력 (idle) ───────── */}
-        {status === "idle" && (
+        {effectiveStatus === "idle" && (
           <FadeIn>
             <div className="mb-12">
               <span className="inline-block bg-secondary text-secondary-foreground px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] font-bold mb-4">
@@ -466,7 +515,7 @@ export default function MatchPage() {
         )}
 
         {/* ───────── 스트리밍 중 ───────── */}
-        {status === "streaming" && (
+        {effectiveStatus === "streaming" && (
           <FadeIn>
             <div className="flex items-center gap-3 mb-8">
               <div className="h-2.5 w-2.5 bg-secondary animate-pulse" />
@@ -479,7 +528,7 @@ export default function MatchPage() {
         )}
 
         {/* ───────── 에러 ───────── */}
-        {status === "error" && (
+        {effectiveStatus === "error" && (
           <FadeIn>
             <div className="border-l-4 border-destructive bg-card p-8 space-y-4">
               <h3 className="font-heading text-xl font-bold text-destructive">
@@ -496,7 +545,7 @@ export default function MatchPage() {
         )}
 
         {/* ───────── 매칭 결과 ───────── */}
-        {status === "done" && matchResult && (
+        {effectiveStatus === "done" && matchResult && (
           <>
             {/* 히어로 헤더 */}
             <FadeIn>
