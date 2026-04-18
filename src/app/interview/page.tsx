@@ -291,7 +291,7 @@ export default function InterviewPage() {
                 면접 예상질문
               </h1>
               <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-                채용공고를 기반으로 예상되는 면접 질문과 모범 답안을 생성합니다.
+                채용공고를 기반으로 정확히 10문항 (기술 5 · 인성 3 · 상황 2) + 면접 팁 4개를 생성합니다.
               </p>
             </div>
             {effectiveStatus === "done" && interviewResult && (
@@ -349,13 +349,22 @@ export default function InterviewPage() {
         {/* 파싱 실패 */}
         {effectiveStatus === "done" && !interviewResult && fullText && (
           <FadeIn>
-            <div className="stepped-pixel-border bg-card p-6">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-secondary font-bold mb-3">
-                원문 출력
+            <div className="border-l-4 border-accent bg-card p-8 space-y-4">
+              <h3 className="font-heading text-xl font-bold text-accent">
+                응답 형식이 예상과 달라요
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                서버가 JSON 스키마를 따르지 않는 응답을 반환했습니다 (카테고리 분포 5/3/2 또는 개수 10/팁 4 위반 가능성). 재시도하면 해결되는 경우가 많아요.
               </p>
-              <pre className="whitespace-pre-wrap text-sm bg-muted p-4 dot-matrix-texture">
-                {fullText}
-              </pre>
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer">원문 보기</summary>
+                <pre className="mt-2 whitespace-pre-wrap bg-muted p-3 max-h-80 overflow-auto">
+                  {fullText}
+                </pre>
+              </details>
+              <Button variant="outline" size="sm" onClick={handleRetry}>
+                다시 시도
+              </Button>
             </div>
           </FadeIn>
         )}
