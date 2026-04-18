@@ -81,13 +81,30 @@ function countHits(
   ).length;
 }
 
+/**
+ * 스킬명의 핵심 토큰(영문 식별자·한글 단어)이 JD 원문에 literal 로 등장하는지.
+ * "(주)", "대시·공백" 같은 장식 문자는 무시. 한 토큰이라도 정규화-매칭되면 pass.
+ */
+function skillAppearsInJd(skillName: string, normalizedJd: string): boolean {
+  const normalized = normalize(skillName);
+  if (!normalized) return true;
+  if (normalizedJd.includes(normalized)) return true;
+  // 복합 스킬명("벡터 DB", "LLM API") 은 토큰 단위로도 체크
+  const tokens = skillName
+    .split(/[\s/·,()\[\]-]+/u)
+    .map((t) => normalize(t))
+    .filter((t) => t.length >= 2);
+  return tokens.some((t) => normalizedJd.includes(t));
+}
+
 export function evaluateAnalyzeRules(
   result: AnalysisResult,
   expected: AnalyzeExpected,
   jdText: string,
 ): Omit<AnalyzeRuleScore, "schemaValidity"> {
   const skillsInRange =
-    result.skills.length >= 1 && result.skills.length <= expected.maxSkills;
+    result.skills.length >= expected.minSkills &&
+    result.skills.length <= expected.maxSkills;
 
   const validCategories = new Set(["required", "preferred", "etc"]);
   const categoryEnumValid = result.skills.every((s) =>
@@ -121,6 +138,14 @@ export function evaluateAnalyzeRules(
     0,
   );
 
+  // intra-domain hallucination — 스킬명이 JD 원문에 literal (정규화 후) 포함되는가.
+  // forbiddenDomains 로 못 잡는 "LLM JD 에 ChatGPT 추론 추가" 같은 케이스를 잡는다.
+  const normalizedJd = normalize(jdText);
+  const hallucinatedSkillCount = result.skills.filter(
+    (s) => !skillAppearsInJd(s.name, normalizedJd),
+  ).length;
+  const totalSkillCount = result.skills.length;
+
   return {
     skillsInRange,
     categoryEnumValid,
@@ -130,6 +155,8 @@ export function evaluateAnalyzeRules(
     mustHavePreferredTotal,
     companyInfoPresent,
     domainIntrusionCount,
+    hallucinatedSkillCount,
+    totalSkillCount,
   };
 }
 
@@ -142,6 +169,7 @@ export function summarizeAnalyzeRules(rules: AnalyzeRuleScore): string {
     `preferred=${rules.mustHavePreferredHits}/${rules.mustHavePreferredTotal}`,
     `company=${rules.companyInfoPresent ? "✓" : "✗"}`,
     `intrusion=${rules.domainIntrusionCount}`,
+    `halluc=${rules.hallucinatedSkillCount}/${rules.totalSkillCount}`,
   ];
   return parts.join(" ");
 }

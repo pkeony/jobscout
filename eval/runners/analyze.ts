@@ -32,6 +32,8 @@ const EMPTY_RULES: AnalyzeRuleScore = {
   mustHavePreferredTotal: 0,
   companyInfoPresent: false,
   domainIntrusionCount: 0,
+  hallucinatedSkillCount: 0,
+  totalSkillCount: 0,
 };
 
 export async function runAnalyzeCase(
@@ -167,6 +169,13 @@ export function computeAnalyzeAggregate(
   const avgDomainIntrusionCount =
     reports.reduce((s, r) => s + r.rules.domainIntrusionCount, 0) / total;
 
+  const hallucinationViolations = reports.filter(
+    (r) => r.rules.hallucinatedSkillCount > 0,
+  ).length;
+  const hallucinationRate = hallucinationViolations / total;
+  const avgHallucinatedSkillCount =
+    reports.reduce((s, r) => s + r.rules.hallucinatedSkillCount, 0) / total;
+
   const judgeScores = reports
     .map((r) => r.judge?.score)
     .filter((s): s is number => typeof s === "number");
@@ -188,6 +197,8 @@ export function computeAnalyzeAggregate(
     companyInfoPresentRate,
     domainIntrusionRate,
     avgDomainIntrusionCount,
+    hallucinationRate,
+    avgHallucinatedSkillCount,
     judgeAvg,
     p50LatencyMs: percentile(latencies, 50),
     p95LatencyMs: percentile(latencies, 95),
@@ -271,6 +282,9 @@ export function printAnalyzeReport(report: AnalyzeEvalReport): void {
   console.log(`  companyInfoPresent    ${pct(a.companyInfoPresentRate)}`);
   console.log(
     `  domainIntrusionRate   ${pct(a.domainIntrusionRate)} (avg ${a.avgDomainIntrusionCount.toFixed(2)} hits/case)`,
+  );
+  console.log(
+    `  hallucinationRate     ${pct(a.hallucinationRate)} (avg ${a.avgHallucinatedSkillCount.toFixed(2)} hallucinated skills/case)`,
   );
   console.log(`  judge avg             ${a.judgeAvg.toFixed(3)}`);
   console.log(

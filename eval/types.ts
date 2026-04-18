@@ -47,6 +47,7 @@ export const AnalyzeExpectedSchema = z.object({
   mustHaveSkills: z.array(z.string()).default([]),
   mustHavePreferredSkills: z.array(z.string()).default([]),
   forbiddenDomains: z.array(z.enum(FORBIDDEN_DOMAIN_VALUES)).default([]),
+  minSkills: z.number().default(1),
   maxSkills: z.number().default(25),
   judgeRubric: z.string(),
 });
@@ -139,6 +140,8 @@ export const AnalyzeRuleScoreSchema = z.object({
   mustHavePreferredTotal: z.number(),
   companyInfoPresent: z.boolean(),
   domainIntrusionCount: z.number(),
+  hallucinatedSkillCount: z.number(),
+  totalSkillCount: z.number(),
 });
 export type AnalyzeRuleScore = z.infer<typeof AnalyzeRuleScoreSchema>;
 
@@ -275,6 +278,8 @@ export const AnalyzeAggregateSchema = z.object({
   companyInfoPresentRate: z.number(),
   domainIntrusionRate: z.number(),
   avgDomainIntrusionCount: z.number(),
+  hallucinationRate: z.number(),
+  avgHallucinatedSkillCount: z.number(),
   judgeAvg: z.number(),
   p50LatencyMs: z.number(),
   p95LatencyMs: z.number(),

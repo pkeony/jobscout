@@ -121,7 +121,7 @@ export async function runInterviewCase(
         model,
         system: INTERVIEW_SYSTEM_PROMPT,
         temperature: 0.5,
-        maxTokens: 4096,
+        maxTokens: 8192,
         responseJson: { schema: INTERVIEW_RESPONSE_SCHEMA },
       },
       (raw) => raw,
