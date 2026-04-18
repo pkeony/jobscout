@@ -297,25 +297,69 @@ function extractTitle($: cheerio.CheerioAPI): string {
   );
 }
 
-function extractCompany($: cheerio.CheerioAPI): string {
-  // og:site_name 메타 태그
-  const siteName = $('meta[property="og:site_name"]').attr("content")?.trim();
-  if (siteName) return siteName;
+function extractCompany($: cheerio.CheerioAPI, url: string): string {
+  // 1. 호스트별 og:title/description 패턴 (og:site_name이 사이트명이라 쓸 수 없는 사이트들)
+  const hostFallback = extractCompanyByHost($, url);
+  if (hostFallback) return hostFallback;
 
-  // 채용 사이트 공통 패턴
+  // 2. 채용 사이트 공통 selector
   const companySelectors = [
     '[class*="company-name"]',
     '[class*="companyName"]',
     '[class*="company_name"]',
     '[data-company]',
   ];
-
   for (const selector of companySelectors) {
     const text = $(selector).first().text().trim();
     if (text) return text;
   }
 
+  // 3. og:site_name (마지막 폴백 — 사이트명일 가능성 높지만 일부 사이트는 진짜 회사명을 넣음)
+  const siteName = $('meta[property="og:site_name"]').attr("content")?.trim();
+  if (siteName) return siteName;
+
   return "회사명 미확인";
+}
+
+/**
+ * 사이트별 회사명 추출 — og:site_name이 사이트명(점핏, 피플앤잡 등)이라 회사명으로 쓸 수 없는 케이스 보정.
+ * - 점프핏: og:description = "{회사명} - {공고제목} 채용"
+ * - 피플앤잡: og:title = "{직무} - {회사명한글}, {회사명영문} - 피플앤잡"
+ */
+function extractCompanyByHost($: cheerio.CheerioAPI, url: string): string | null {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+
+  if (host.endsWith("jumpit.saramin.co.kr")) {
+    const desc = $('meta[property="og:description"]').attr("content")?.trim();
+    if (desc) {
+      const dashIdx = desc.indexOf(" - ");
+      if (dashIdx > 0) {
+        const candidate = desc.slice(0, dashIdx).trim();
+        if (candidate && candidate.length <= 60) return candidate;
+      }
+    }
+  }
+
+  if (host.endsWith("peoplenjob.com")) {
+    const ogTitle = $('meta[property="og:title"]').attr("content")?.trim();
+    if (ogTitle) {
+      const parts = ogTitle.split(" - ").map((p) => p.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        // 마지막은 사이트명 → 끝에서 두 번째가 회사명. 콤마로 한글/영문 분리되어 있으면 한글(앞) 우선
+        const candidate = parts[parts.length - 2];
+        const commaIdx = candidate.indexOf(",");
+        const company = commaIdx > 0 ? candidate.slice(0, commaIdx).trim() : candidate;
+        if (company && company.length <= 60 && company !== "피플앤잡") return company;
+      }
+    }
+  }
+
+  return null;
 }
 
 function extractBody($: cheerio.CheerioAPI): string {
@@ -449,7 +493,7 @@ export async function crawlJobDescription(url: string): Promise<CrawlJobResult> 
   if (wanted) return wanted;
 
   const title = extractTitle($);
-  const company = extractCompany($);
+  const company = extractCompany($, url);
   const text = extractBody($);
 
   if (text.length < 50) {
