@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { stream } from "@/lib/ai";
+import { type ImproveCoverLetterResult } from "@/types";
+import { streamToJson, makeUsage, type StreamEvent } from "@/lib/ai";
+import { IMPROVE_COVER_LETTER_RESPONSE_SCHEMA } from "@/lib/ai/schemas";
 import { createSSEStream, sseResponse } from "@/lib/sse";
 import { validateFile, extractText } from "@/lib/parse/extract-text";
 import {
   IMPROVE_COVER_LETTER_SYSTEM_PROMPT,
   buildImproveCoverLetterMessages,
+  extractImproveCoverLetterJson,
 } from "@/lib/prompts/improve-cover-letter";
+
+const MAX_JD_LENGTH = 30_000;
 
 export async function POST(req: Request) {
   const apiKey = process.env.GOOGLE_API_KEY;
@@ -18,9 +23,9 @@ export async function POST(req: Request) {
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  const jdText = formData.get("jdText") as string | null;
+  const jdTextRaw = formData.get("jdText") as string | null;
 
-  if (!file || !jdText) {
+  if (!file || !jdTextRaw) {
     return NextResponse.json(
       { error: "파일과 JD가 필요합니다" },
       { status: 400 },
@@ -54,16 +59,40 @@ export async function POST(req: Request) {
     );
   }
 
-  const messages = buildImproveCoverLetterMessages(coverLetterText, jdText);
+  const jdText = jdTextRaw.slice(0, MAX_JD_LENGTH);
+  const reqId = crypto.randomUUID().slice(0, 8);
+  const startMs = Date.now();
 
-  const generator = stream(apiKey, messages, {
-    model: "gemini-2.5-flash",
-    system: IMPROVE_COVER_LETTER_SYSTEM_PROMPT,
-    temperature: 0.4,
-    maxTokens: 4096,
-    signal: req.signal,
-  });
+  console.log(
+    `[improve-cover-letter ${reqId}] start fileSize=${file.size} clLen=${coverLetterText.length} jdLen=${jdText.length}`,
+  );
 
-  const sseStream = createSSEStream(generator, req.signal);
+  async function* run(): AsyncIterable<StreamEvent> {
+    const messages = buildImproveCoverLetterMessages(coverLetterText, jdText);
+
+    const result = await streamToJson<ImproveCoverLetterResult>(
+      apiKey!,
+      messages,
+      {
+        model: "gemini-2.5-flash",
+        system: IMPROVE_COVER_LETTER_SYSTEM_PROMPT,
+        temperature: 0.4,
+        maxTokens: 6144,
+        responseJson: { schema: IMPROVE_COVER_LETTER_RESPONSE_SCHEMA },
+        signal: req.signal,
+      },
+      extractImproveCoverLetterJson,
+    );
+
+    const latencyMs = Date.now() - startMs;
+    console.log(
+      `[improve-cover-letter ${reqId}] done suggestions=${result.result.suggestions.length} missing=${result.result.missingFromJd.length} tokens=${result.tokensIn}/${result.tokensOut} latency=${latencyMs}ms`,
+    );
+
+    yield { type: "delta", text: JSON.stringify(result.result) };
+    yield { type: "done", usage: makeUsage(result.model, result.tokensIn, result.tokensOut), model: result.model };
+  }
+
+  const sseStream = createSSEStream(run(), req.signal);
   return sseResponse(sseStream);
 }

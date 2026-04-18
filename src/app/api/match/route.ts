@@ -25,6 +25,11 @@ export async function POST(req: Request) {
 
   const { jdText, profile, analysisResult, focusPosition } = parsed.data;
   const messages = buildMatchMessages(jdText, profile, { analysisResult, focusPosition });
+  const reqId = crypto.randomUUID().slice(0, 8);
+  const startMs = Date.now();
+  console.log(
+    `[match ${reqId}] start jdLen=${jdText.length} analysis=${!!analysisResult} focus=${!!focusPosition}`,
+  );
 
   const generator = stream(apiKey, messages, {
     model: "gemini-2.5-flash",
@@ -35,6 +40,18 @@ export async function POST(req: Request) {
     bufferedFallback: true,
   });
 
-  const sseStream = createSSEStream(generator, req.signal);
+  async function* wrapped() {
+    for await (const event of generator) {
+      if (event.type === "done") {
+        const latencyMs = Date.now() - startMs;
+        console.log(
+          `[match ${reqId}] done tokens=${event.usage.inputTokens}/${event.usage.outputTokens} latency=${latencyMs}ms`,
+        );
+      }
+      yield event;
+    }
+  }
+
+  const sseStream = createSSEStream(wrapped(), req.signal);
   return sseResponse(sseStream);
 }
