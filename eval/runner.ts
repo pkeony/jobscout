@@ -4,6 +4,7 @@ import { stream } from "@/lib/ai/stream";
 import type { ModelId } from "@/lib/ai/types";
 import {
   MATCH_SYSTEM_PROMPT,
+  PROMPT_VERSION as MATCH_PROMPT_VERSION,
   buildMatchMessages,
   extractMatchJson,
 } from "@/lib/prompts/match";
@@ -202,6 +203,7 @@ export async function runEval(opts: RunEvalOpts): Promise<EvalReport> {
     runId: `run_${Date.now()}`,
     startedAt: new Date().toISOString(),
     model: opts.model,
+    promptVersion: MATCH_PROMPT_VERSION,
     caseCount: cases.length,
     cases: reports,
     aggregate: computeAggregate(reports),
@@ -227,7 +229,9 @@ export function printReport(report: EvalReport): void {
 
   console.log("");
   console.log(`=== EVAL REPORT · ${report.runId} · ${report.model} ===`);
-  console.log(`cases: ${report.caseCount}  started: ${report.startedAt}`);
+  console.log(
+    `cases: ${report.caseCount}  started: ${report.startedAt}  promptVersion: ${report.promptVersion ?? "n/a"}`,
+  );
   console.log("");
 
   for (const c of report.cases) {

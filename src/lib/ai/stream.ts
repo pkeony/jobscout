@@ -55,16 +55,33 @@ async function sleep(ms: number): Promise<void> {
 }
 
 function buildRequest(model: ModelId, messages: AiMessage[], opts: ChatOptions) {
+  const config: {
+    systemInstruction?: string;
+    maxOutputTokens: number;
+    temperature: number;
+    thinkingConfig: { thinkingBudget: number };
+    abortSignal?: AbortSignal;
+    responseMimeType?: string;
+    responseSchema?: unknown;
+  } = {
+    systemInstruction: opts.system,
+    maxOutputTokens: opts.maxTokens ?? 2048,
+    temperature: opts.temperature ?? 0,
+    thinkingConfig: { thinkingBudget: 512 },
+    abortSignal: opts.signal,
+  };
+
+  if (opts.responseJson) {
+    config.responseMimeType = "application/json";
+    if (typeof opts.responseJson === "object" && opts.responseJson.schema) {
+      config.responseSchema = opts.responseJson.schema;
+    }
+  }
+
   return {
     model,
     contents: toGeminiContents(messages),
-    config: {
-      systemInstruction: opts.system,
-      maxOutputTokens: opts.maxTokens ?? 2048,
-      temperature: opts.temperature ?? 0,
-      thinkingConfig: { thinkingBudget: 512 },
-      abortSignal: opts.signal,
-    },
+    config,
   };
 }
 
@@ -210,4 +227,36 @@ export async function* stream(
 
   geminiBreaker.recordFailure();
   throw lastError ?? new Error("모든 모델이 응답하지 않습니다");
+}
+
+export interface JsonStreamResult<T> {
+  result: T;
+  tokensIn: number;
+  tokensOut: number;
+  model: ModelId;
+}
+
+/**
+ * 버퍼링 스트림으로 전체 응답을 모아 JSON으로 파싱. cover-letter/interview 같이
+ * 중간 렌더가 의미 없는 JSON 응답 엔드포인트가 공유.
+ */
+export async function streamToJson<T>(
+  apiKey: string,
+  messages: AiMessage[],
+  opts: ChatOptions,
+  parse: (raw: string) => T,
+): Promise<JsonStreamResult<T>> {
+  let fullText = "";
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let model: ModelId = opts.model;
+  for await (const event of stream(apiKey, messages, { ...opts, bufferedFallback: true })) {
+    if (event.type === "delta") fullText += event.text;
+    if (event.type === "done") {
+      tokensIn = event.usage.inputTokens;
+      tokensOut = event.usage.outputTokens;
+      model = event.model;
+    }
+  }
+  return { result: parse(fullText), tokensIn, tokensOut, model };
 }

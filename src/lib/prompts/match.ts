@@ -8,6 +8,8 @@ import {
   serializeProfile,
 } from "./_shared";
 
+export const PROMPT_VERSION = "match@v1.0.0-2026-04-19";
+
 export const MATCH_SYSTEM_PROMPT = `당신은 채용공고-지원자 매칭 전문가입니다.
 채용공고(JD) 텍스트와 지원자 프로필을 비교 분석하여 매칭 결과를 JSON으로 반환합니다.
 

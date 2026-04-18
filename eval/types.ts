@@ -76,6 +76,7 @@ export const EvalReportSchema = z.object({
   runId: z.string(),
   startedAt: z.string(),
   model: z.string(),
+  promptVersion: z.string().optional(),
   caseCount: z.number(),
   cases: z.array(CaseReportSchema),
   aggregate: AggregateSchema,
