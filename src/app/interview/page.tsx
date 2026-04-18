@@ -4,8 +4,23 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractInterviewJson } from "@/lib/prompts/interview";
-import type { InterviewResult, InterviewQuestion } from "@/types";
+import { AnalysisResultSchema, type InterviewResult, type InterviewQuestion } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
+
+function readAnalysisExtras(): Record<string, unknown> {
+  const extras: Record<string, unknown> = {};
+  const cached = sessionStorage.getItem("jobscout:analyzeResult");
+  if (cached) {
+    try {
+      extras.analysisResult = AnalysisResultSchema.parse(JSON.parse(cached));
+    } catch {
+      // stale 캐시는 무시
+    }
+  }
+  const focus = sessionStorage.getItem("jobscout:focusPosition");
+  if (focus) extras.focusPosition = focus;
+  return extras;
+}
 import { cn, friendlyError } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -216,7 +231,7 @@ export default function InterviewPage() {
 
     if (!startedRef.current) {
       startedRef.current = true;
-      start({ jdText: text });
+      start({ jdText: text, ...readAnalysisExtras() });
     }
   }, [router, start]);
 
@@ -247,7 +262,7 @@ export default function InterviewPage() {
     const text = sessionStorage.getItem("jobscout:jdText");
     if (text) {
       startedRef.current = true;
-      start({ jdText: text });
+      start({ jdText: text, ...readAnalysisExtras() });
     }
   };
 

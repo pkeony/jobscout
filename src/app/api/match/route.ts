@@ -23,8 +23,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const { jdText, profile } = parsed.data;
-  const messages = buildMatchMessages(jdText, profile);
+  const { jdText, profile, analysisResult, focusPosition } = parsed.data;
+  const messages = buildMatchMessages(jdText, profile, { analysisResult, focusPosition });
 
   const generator = stream(apiKey, messages, {
     model: "gemini-2.5-flash",

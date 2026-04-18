@@ -26,8 +26,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const { jdText } = parsed.data;
-  const messages = buildInterviewMessages(jdText);
+  const { jdText, analysisResult, focusPosition } = parsed.data;
+  const messages = buildInterviewMessages(jdText, { analysisResult, focusPosition });
 
   const generator = stream(apiKey, messages, {
     model: "gemini-2.5-flash",

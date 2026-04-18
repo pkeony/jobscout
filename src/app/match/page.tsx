@@ -4,8 +4,23 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractMatchJson } from "@/lib/prompts/match";
-import type { MatchResult, SkillMatch, UserProfile } from "@/types";
+import { AnalysisResultSchema, type MatchResult, type SkillMatch, type UserProfile } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
+
+function readAnalysisExtras(): Record<string, unknown> {
+  const extras: Record<string, unknown> = {};
+  const cached = sessionStorage.getItem("jobscout:analyzeResult");
+  if (cached) {
+    try {
+      extras.analysisResult = AnalysisResultSchema.parse(JSON.parse(cached));
+    } catch {
+      // stale 캐시는 무시
+    }
+  }
+  const focus = sessionStorage.getItem("jobscout:focusPosition");
+  if (focus) extras.focusPosition = focus;
+  return extras;
+}
 import { cn, friendlyError } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,10 +49,12 @@ function ProfileForm({
   );
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
+  const [resumeAutoFilled, setResumeAutoFilled] = useState(false);
 
   const handleResumeFile = useCallback(async (file: File) => {
     setResumeLoading(true);
     setResumeError(null);
+    setResumeAutoFilled(false);
 
     try {
       const formData = new FormData();
@@ -59,6 +76,7 @@ function ProfileForm({
       setExperience(profile.experience);
       setEducation(profile.education ?? "");
       setIntroduction(profile.introduction ?? "");
+      setResumeAutoFilled(true);
     } catch {
       setResumeError("이력서 파싱 중 오류가 발생했습니다");
     } finally {
@@ -82,7 +100,24 @@ function ProfileForm({
   const isValid = skills.trim().length > 0 && experience.trim().length > 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t-4 border-foreground">
+    <>
+      {resumeAutoFilled && !resumeError && (
+        <div className="border-l-4 border-accent bg-accent/10 px-4 py-3 mb-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-accent font-mono text-xs font-bold shrink-0">✓</span>
+            <span className="text-sm leading-snug">
+              이력서에서 프로필 추출 완료 — <strong>아래 항목을 검토</strong>한 뒤 매칭을 시작하세요.
+            </span>
+          </div>
+          <button
+            onClick={() => setResumeAutoFilled(false)}
+            className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4 shrink-0"
+          >
+            다시 업로드
+          </button>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t-4 border-foreground">
       {/* 좌측: 파일 업로드 */}
       <div className="p-8 bg-muted/30 border-r-0 md:border-r-2 border-border">
         <div className="flex justify-between items-start mb-6">
@@ -181,7 +216,8 @@ function ProfileForm({
           <span className="font-heading italic font-black text-7xl">MATCH</span>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -302,7 +338,7 @@ export default function MatchPage() {
       setProfile(submittedProfile);
 
       if (jdText) {
-        start({ jdText, profile: submittedProfile });
+        start({ jdText, profile: submittedProfile, ...readAnalysisExtras() });
       }
     },
     [jdText, start],
@@ -316,6 +352,14 @@ export default function MatchPage() {
       return null;
     }
   }, [status, fullText]);
+
+  const sortedSkillMatches = useMemo(() => {
+    if (!matchResult) return [];
+    const order: Record<SkillMatch["status"], number> = { gap: 0, partial: 1, match: 2 };
+    return [...matchResult.skillMatches].sort(
+      (a, b) => order[a.status] - order[b.status],
+    );
+  }, [matchResult]);
 
   const handleRetry = () => {
     reset();
@@ -483,7 +527,7 @@ export default function MatchPage() {
                 <div className="bg-card p-8 dot-matrix-texture">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <StaggerList className="contents">
-                      {matchResult.skillMatches.map((m) => (
+                      {sortedSkillMatches.map((m) => (
                         <StaggerItem key={m.name}>
                           <SkillMatchItem match={m} />
                         </StaggerItem>

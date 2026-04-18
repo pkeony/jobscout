@@ -4,8 +4,23 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
-import type { UserProfile } from "@/types";
+import { AnalysisResultSchema, type UserProfile } from "@/types";
 import type { StreamEvent } from "@/lib/ai/types";
+
+function readAnalysisExtras(): Record<string, unknown> {
+  const extras: Record<string, unknown> = {};
+  const cached = sessionStorage.getItem("jobscout:analyzeResult");
+  if (cached) {
+    try {
+      extras.analysisResult = AnalysisResultSchema.parse(JSON.parse(cached));
+    } catch {
+      // stale 캐시는 무시
+    }
+  }
+  const focus = sessionStorage.getItem("jobscout:focusPosition");
+  if (focus) extras.focusPosition = focus;
+  return extras;
+}
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FadeIn } from "@/components/motion";
@@ -80,7 +95,7 @@ export default function CoverLetterPage() {
     if (!startedRef.current) {
       startedRef.current = true;
       const profile = JSON.parse(savedProfile) as UserProfile;
-      start({ jdText: text, profile });
+      start({ jdText: text, profile, ...readAnalysisExtras() });
     }
   }, [router, start]);
 
@@ -110,7 +125,7 @@ export default function CoverLetterPage() {
     if (text && savedProfile) {
       startedRef.current = true;
       const profile = JSON.parse(savedProfile) as UserProfile;
-      start({ jdText: text, profile });
+      start({ jdText: text, profile, ...readAnalysisExtras() });
     }
   };
 

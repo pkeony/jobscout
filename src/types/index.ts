@@ -117,16 +117,22 @@ export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
 export const MatchRequestSchema = z.object({
   jdText: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
   profile: UserProfileSchema,
+  analysisResult: AnalysisResultSchema.optional(),
+  focusPosition: z.string().optional(),
 });
 export type MatchRequest = z.infer<typeof MatchRequestSchema>;
 
 export const CoverLetterRequestSchema = z.object({
   jdText: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
   profile: UserProfileSchema,
+  analysisResult: AnalysisResultSchema.optional(),
+  focusPosition: z.string().optional(),
 });
 export type CoverLetterRequest = z.infer<typeof CoverLetterRequestSchema>;
 
 export const InterviewRequestSchema = z.object({
   jdText: z.string().min(50, "JD 텍스트는 최소 50자 이상이어야 합니다"),
+  analysisResult: AnalysisResultSchema.optional(),
+  focusPosition: z.string().optional(),
 });
 export type InterviewRequest = z.infer<typeof InterviewRequestSchema>;
