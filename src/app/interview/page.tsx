@@ -11,6 +11,7 @@ import {
   type InterviewQuestion,
 } from "@/types";
 import { addInterviewHistoryEntry } from "@/lib/storage/interview-history";
+import { getActiveProfile } from "@/lib/storage/profiles";
 import type { StreamEvent } from "@/lib/ai/types";
 
 function readAnalysisExtras(): Record<string, unknown> {
@@ -237,7 +238,12 @@ export default function InterviewPage() {
 
     if (!startedRef.current) {
       startedRef.current = true;
-      start({ jdText: text, ...readAnalysisExtras() });
+      const activeProfile = getActiveProfile();
+      start({
+        jdText: text,
+        ...(activeProfile ? { profile: activeProfile.profile } : {}),
+        ...readAnalysisExtras(),
+      });
     }
   }, [router, start]);
 
@@ -303,7 +309,12 @@ export default function InterviewPage() {
     const text = sessionStorage.getItem("jobscout:jdText");
     if (text) {
       startedRef.current = true;
-      start({ jdText: text, ...readAnalysisExtras() });
+      const activeProfile = getActiveProfile();
+      start({
+        jdText: text,
+        ...(activeProfile ? { profile: activeProfile.profile } : {}),
+        ...readAnalysisExtras(),
+      });
     }
   };
 

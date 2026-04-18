@@ -266,6 +266,7 @@ export type CoverLetterRequest = z.infer<typeof CoverLetterRequestSchema>;
 
 export const InterviewRequestSchema = z.object({
   jdText: z.string().min(50, "채용공고 텍스트는 최소 50자 이상이어야 합니다"),
+  profile: UserProfileSchema.optional(),
   analysisResult: AnalysisResultSchema.optional(),
   focusPosition: z.string().optional(),
 });

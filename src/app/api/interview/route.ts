@@ -36,17 +36,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const { jdText, analysisResult, focusPosition } = parsed.data;
+  const { jdText, profile, analysisResult, focusPosition } = parsed.data;
   const jd = jdText.slice(0, MAX_JD_LENGTH);
   const reqId = crypto.randomUUID().slice(0, 8);
   const startMs = Date.now();
 
   console.log(
-    `[interview ${reqId}] start jdLen=${jd.length} analysis=${!!analysisResult} focus=${!!focusPosition}`,
+    `[interview ${reqId}] start jdLen=${jd.length} profile=${!!profile} analysis=${!!analysisResult} focus=${!!focusPosition}`,
   );
 
   async function* run(): AsyncIterable<StreamEvent> {
-    const messages = buildInterviewMessages(jd, { analysisResult, focusPosition });
+    const messages = buildInterviewMessages(jd, { profile, analysisResult, focusPosition });
     let lastError: string | undefined;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
