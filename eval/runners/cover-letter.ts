@@ -33,6 +33,8 @@ const EMPTY_RULES: CoverLetterRuleScore = {
   companyNamePresent: false,
   jobTitlePresent: false,
   starKeywordCount: 0,
+  starLabelCount: 0,
+  starLabelFullySatisfiedSections: 0,
 };
 
 export async function runCoverLetterCase(
@@ -147,6 +149,13 @@ export function computeCoverLetterAggregate(
     reports.filter((r) => r.rules.jobTitlePresent).length / total;
   const avgStarKeywordCount =
     reports.reduce((s, r) => s + r.rules.starKeywordCount, 0) / total;
+  const avgStarLabelCount =
+    reports.reduce((s, r) => s + r.rules.starLabelCount, 0) / total;
+  const starLabelFullyCoveredRate =
+    reports.filter(
+      (r) =>
+        r.rules.starLabelFullySatisfiedSections >= 2, // 핵심 역량 + 성장 경험 2개 섹션
+    ).length / total;
 
   const judgeScores = reports
     .map((r) => r.judge?.score)
@@ -168,6 +177,8 @@ export function computeCoverLetterAggregate(
     companyNamePresentRate,
     jobTitlePresentRate,
     avgStarKeywordCount,
+    avgStarLabelCount,
+    starLabelFullyCoveredRate,
     judgeAvg,
     p50LatencyMs: percentile(latencies, 50),
     p95LatencyMs: percentile(latencies, 95),
@@ -252,6 +263,8 @@ export function printCoverLetterReport(report: CoverLetterEvalReport): void {
   console.log(`  companyNamePresent    ${pct(a.companyNamePresentRate)}`);
   console.log(`  jobTitlePresent       ${pct(a.jobTitlePresentRate)}`);
   console.log(`  avg STAR keywords     ${a.avgStarKeywordCount.toFixed(1)}/case`);
+  console.log(`  avg STAR labels       ${a.avgStarLabelCount.toFixed(1)}/case`);
+  console.log(`  STAR fully covered    ${pct(a.starLabelFullyCoveredRate)} (핵심역량+성장경험 2섹션 모두 4라벨)`);
   console.log(`  judge avg             ${a.judgeAvg.toFixed(3)}`);
   console.log(
     `  latency p50/p95       ${a.p50LatencyMs}ms / ${a.p95LatencyMs}ms`,

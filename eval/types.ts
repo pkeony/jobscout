@@ -154,6 +154,8 @@ export const CoverLetterRuleScoreSchema = z.object({
   companyNamePresent: z.boolean(),
   jobTitlePresent: z.boolean(),
   starKeywordCount: z.number(),
+  starLabelCount: z.number(),
+  starLabelFullySatisfiedSections: z.number(),
 });
 export type CoverLetterRuleScore = z.infer<typeof CoverLetterRuleScoreSchema>;
 
@@ -167,6 +169,7 @@ export const InterviewRuleScoreSchema = z.object({
   categoryOrderValid: z.boolean(),
   avgSampleAnswerSentences: z.number(),
   sampleAnswerSentenceValid: z.boolean(),
+  sampleAnswerAvgValid: z.boolean(),
   profileSkillMentionCount: z.number(),
   profileSkillTotal: z.number(),
   duplicateQuestionPairs: z.number(),
@@ -296,6 +299,8 @@ export const CoverLetterAggregateSchema = z.object({
   companyNamePresentRate: z.number(),
   jobTitlePresentRate: z.number(),
   avgStarKeywordCount: z.number(),
+  avgStarLabelCount: z.number(),
+  starLabelFullyCoveredRate: z.number(),
   judgeAvg: z.number(),
   p50LatencyMs: z.number(),
   p95LatencyMs: z.number(),
@@ -309,6 +314,7 @@ export const InterviewAggregateSchema = z.object({
   categoryDistributionExactRate: z.number(),
   categoryOrderValidRate: z.number(),
   sampleAnswerSentenceValidRate: z.number(),
+  sampleAnswerAvgValidRate: z.number(),
   avgSampleAnswerSentences: z.number(),
   profileSkillMentionCoverage: z.number(),
   avgDuplicateQuestionPairs: z.number(),

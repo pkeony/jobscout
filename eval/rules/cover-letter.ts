@@ -22,12 +22,25 @@ const STAR_KEYWORDS = [
   "달성",
 ];
 
+const STAR_LABELS = ["[Situation]", "[Task]", "[Action]", "[Result]"] as const;
+
+const STAR_LABEL_REQUIRED_SECTIONS = ["핵심 역량", "성장 경험"] as const;
+
 function countStarKeywords(text: string): number {
   const lower = text.toLowerCase();
   return STAR_KEYWORDS.reduce((sum, kw) => {
     const matches = lower.split(kw.toLowerCase()).length - 1;
     return sum + matches;
   }, 0);
+}
+
+function countStarLabelsInText(text: string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const label of STAR_LABELS) {
+    const matches = text.split(label).length - 1;
+    counts[label] = matches;
+  }
+  return counts;
 }
 
 function headingMatches(heading: string, required: string): boolean {
@@ -70,6 +83,22 @@ export function evaluateCoverLetterRules(
     .join("\n");
   const starKeywordCount = countStarKeywords(allText);
 
+  // STAR 라벨 (정확한 [Situation]/[Task]/[Action]/[Result]) 집계.
+  // 지원 동기·입사 후 포부 섹션은 예외 — 핵심 역량·성장 경험 섹션만 모든 라벨 등장 확인.
+  let starLabelCount = 0;
+  let starLabelFullySatisfiedSections = 0;
+  for (const section of result.sections) {
+    const sectionText = section.paragraphs.join("\n");
+    const counts = countStarLabelsInText(sectionText);
+    starLabelCount += STAR_LABELS.reduce((sum, l) => sum + counts[l], 0);
+    const isRequired = STAR_LABEL_REQUIRED_SECTIONS.some((req) =>
+      section.heading.includes(req),
+    );
+    if (isRequired && STAR_LABELS.every((l) => counts[l] >= 1)) {
+      starLabelFullySatisfiedSections++;
+    }
+  }
+
   return {
     sectionCount,
     headingsMatched,
@@ -78,6 +107,8 @@ export function evaluateCoverLetterRules(
     companyNamePresent,
     jobTitlePresent,
     starKeywordCount,
+    starLabelCount,
+    starLabelFullySatisfiedSections,
   };
 }
 
@@ -91,6 +122,6 @@ export function summarizeCoverLetterRules(
     `paras=${rules.paragraphCountValid ? "✓" : "✗"}`,
     `company=${rules.companyNamePresent ? "✓" : "✗"}`,
     `title=${rules.jobTitlePresent ? "✓" : "✗"}`,
-    `star=${rules.starKeywordCount}`,
+    `star=kw${rules.starKeywordCount}/label${rules.starLabelCount}/full${rules.starLabelFullySatisfiedSections}`,
   ].join(" ");
 }

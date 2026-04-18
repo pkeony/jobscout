@@ -36,6 +36,7 @@ const EMPTY_RULES: InterviewRuleScore = {
   categoryOrderValid: false,
   avgSampleAnswerSentences: 0,
   sampleAnswerSentenceValid: false,
+  sampleAnswerAvgValid: false,
   profileSkillMentionCount: 0,
   profileSkillTotal: 0,
   duplicateQuestionPairs: 0,
@@ -235,6 +236,8 @@ export function computeInterviewAggregate(
     reports.filter((r) => r.rules.categoryOrderValid).length / total;
   const sampleAnswerSentenceValidRate =
     reports.filter((r) => r.rules.sampleAnswerSentenceValid).length / total;
+  const sampleAnswerAvgValidRate =
+    reports.filter((r) => r.rules.sampleAnswerAvgValid).length / total;
   const avgSampleAnswerSentences =
     reports.reduce((s, r) => s + r.rules.avgSampleAnswerSentences, 0) / total;
 
@@ -269,6 +272,7 @@ export function computeInterviewAggregate(
     categoryDistributionExactRate,
     categoryOrderValidRate,
     sampleAnswerSentenceValidRate,
+    sampleAnswerAvgValidRate,
     avgSampleAnswerSentences,
     profileSkillMentionCoverage,
     avgDuplicateQuestionPairs,
@@ -352,7 +356,8 @@ export function printInterviewReport(report: InterviewEvalReport): void {
   console.log(`  schemaValidity          ${pct(a.schemaValidityRate)}`);
   console.log(`  categoryDistExact       ${pct(a.categoryDistributionExactRate)}`);
   console.log(`  categoryOrderValid      ${pct(a.categoryOrderValidRate)}`);
-  console.log(`  sampleAnswerSentences   ${pct(a.sampleAnswerSentenceValidRate)} (avg ${a.avgSampleAnswerSentences.toFixed(1)})`);
+  console.log(`  sampleAnswer all-valid  ${pct(a.sampleAnswerSentenceValidRate)}`);
+  console.log(`  sampleAnswer avg-valid  ${pct(a.sampleAnswerAvgValidRate)} (avg ${a.avgSampleAnswerSentences.toFixed(1)})`);
   console.log(`  profileSkillMention     ${a.profileSkillMentionCoverage.toFixed(3)}`);
   console.log(`  avg duplicate pairs     ${a.avgDuplicateQuestionPairs.toFixed(2)}`);
   console.log(`  judge avg               ${a.judgeAvg.toFixed(3)}`);

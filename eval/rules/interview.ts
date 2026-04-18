@@ -81,6 +81,9 @@ export function evaluateInterviewRules(
       c >= expected.minSampleAnswerSentences &&
       c <= expected.maxSampleAnswerSentences,
   );
+  const sampleAnswerAvgValid =
+    avgSampleAnswerSentences >= expected.minSampleAnswerSentences &&
+    avgSampleAnswerSentences <= expected.maxSampleAnswerSentences;
 
   let profileSkillMentionCount = 0;
   let profileSkillTotal = 0;
@@ -116,6 +119,7 @@ export function evaluateInterviewRules(
     categoryOrderValid,
     avgSampleAnswerSentences,
     sampleAnswerSentenceValid,
+    sampleAnswerAvgValid,
     profileSkillMentionCount,
     profileSkillTotal,
     duplicateQuestionPairs,
@@ -128,7 +132,7 @@ export function summarizeInterviewRules(rules: InterviewRuleScore): string {
     `dist=${rules.preTechnicalCount}/${rules.preBehavioralCount}/${rules.preSituationalCount}`,
     `tips=${rules.preTipsCount}`,
     `order=${rules.categoryOrderValid ? "✓" : "✗"}`,
-    `sent=${rules.sampleAnswerSentenceValid ? "✓" : "✗"}(avg${rules.avgSampleAnswerSentences.toFixed(1)})`,
+    `sent=avg${rules.sampleAnswerAvgValid ? "✓" : "✗"}(${rules.avgSampleAnswerSentences.toFixed(1)})/all${rules.sampleAnswerSentenceValid ? "✓" : "✗"}`,
     `profile=${rules.profileSkillMentionCount}/${rules.profileSkillTotal}`,
     `dup=${rules.duplicateQuestionPairs}`,
   ].join(" ");
