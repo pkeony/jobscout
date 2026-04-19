@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { FadeIn, StaggerList, StaggerItem } from "@/components/motion";
 import { PixelProgressRing } from "@/components/pixel-progress-ring";
 import { ScoreBreakdownBar } from "@/components/score-breakdown-bar";
@@ -18,6 +18,23 @@ export function MatchResultView({ result }: { result: MatchResult }) {
       (a, b) => order[a.status] - order[b.status],
     );
   }, [result.skillMatches]);
+
+  useEffect(() => {
+    const sb = result.scoreBreakdown;
+    if (!sb) return;
+    const sum =
+      sb.requiredSkills.earned +
+      sb.preferredSkills.earned +
+      sb.experience.earned +
+      sb.base;
+    if (Math.abs(sum - result.score) > 1 && result.score !== 100) {
+      console.warn("[match] scoreBreakdown sum mismatch", {
+        sum,
+        score: result.score,
+        sb,
+      });
+    }
+  }, [result]);
 
   return (
     <div className="space-y-0">

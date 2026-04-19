@@ -113,10 +113,10 @@ export default function HomePage() {
  분석하기
  </button>
  <Link
- href="/analyze"
+ href="/jobs"
  className="text-primary hover:text-accent transition-colors duration-100 text-sm font-medium"
  >
- 채용공고 분석
+ 내 공고
  </Link>
  </nav>
  <Button
@@ -406,28 +406,22 @@ export default function HomePage() {
  </span>
  <div className="flex gap-8">
  <Link
- href="/analyze"
+ href="/jobs"
  className="text-xs uppercase text-primary/60 hover:text-accent transition-colors"
  >
- 채용공고 분석
+ 내 공고
  </Link>
  <Link
- href="/match"
+ href="/profiles"
  className="text-xs uppercase text-primary/60 hover:text-accent transition-colors"
  >
- 프로필 매칭
+ 프로필
  </Link>
  <Link
- href="/cover-letter"
+ href="/settings"
  className="text-xs uppercase text-primary/60 hover:text-accent transition-colors"
  >
- 자소서
- </Link>
- <Link
- href="/interview"
- className="text-xs uppercase text-primary/60 hover:text-accent transition-colors"
- >
- 면접 질문
+ 설정
  </Link>
  </div>
  </footer>

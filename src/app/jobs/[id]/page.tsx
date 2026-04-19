@@ -185,6 +185,8 @@ function JobWorkspaceInner() {
         JSON.stringify(found.latestInterview.interviewResult),
       );
     }
+    // 레거시 /history "다시 보기" 에서 남긴 스테일 키 정리
+    sessionStorage.removeItem("jobscout:matchResultRestore");
 
     if (!initialTabParam) {
       setActiveTab(firstMissingTab(found));

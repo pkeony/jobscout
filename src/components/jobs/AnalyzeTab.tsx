@@ -24,11 +24,24 @@ export function AnalyzeTab({ job, autoStart, onCompleted }: Props) {
   const [liveResult, setLiveResult] = useState<AnalysisResult | null>(null);
   const savedRef = useRef(false);
   const startedOnceRef = useRef(false);
+  const autoRetriedRef = useRef(false);
 
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/analyze");
 
   const begin = useCallback(() => {
+    savedRef.current = false;
+    autoRetriedRef.current = false;
+    setLiveResult(null);
+    reset();
+    start(
+      job.focusPosition
+        ? { text: job.jdText, focusPosition: job.focusPosition }
+        : { text: job.jdText },
+    );
+  }, [job.jdText, job.focusPosition, start, reset]);
+
+  const retryOnce = useCallback(() => {
     savedRef.current = false;
     setLiveResult(null);
     reset();
@@ -75,6 +88,19 @@ export function AnalyzeTab({ job, autoStart, onCompleted }: Props) {
     });
     onCompleted();
   }, [status, parsedFromStream, job, onCompleted]);
+
+  // Gemini mid-stream 끊김 대응: 파싱 실패 시 1회 자동 재시도
+  useEffect(() => {
+    if (
+      status !== "done" ||
+      parsedFromStream ||
+      !fullText ||
+      autoRetriedRef.current
+    )
+      return;
+    autoRetriedRef.current = true;
+    retryOnce();
+  }, [status, parsedFromStream, fullText, retryOnce]);
 
   const result = liveResult ?? cachedResult;
 
@@ -124,11 +150,33 @@ export function AnalyzeTab({ job, autoStart, onCompleted }: Props) {
     );
   }
 
-  if (status === "done" && !parsedFromStream) {
+  if (status === "done" && !parsedFromStream && fullText && autoRetriedRef.current) {
     return (
-      <div className="border-l-4 border-accent bg-card p-6 space-y-3">
-        <p className="text-sm">
-          응답 형식이 예상과 달라요. 다시 시도해보세요.
+      <div className="border-l-4 border-destructive bg-card p-6 space-y-3">
+        <p className="text-sm font-medium text-destructive">
+          AI 응답이 두 번 연속 중간에 끊겼습니다.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Gemini 서버가 혼잡한 상태일 수 있습니다. 잠시 후 다시 시도해주세요.
+        </p>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">원문 보기</summary>
+          <pre className="mt-2 whitespace-pre-wrap bg-muted p-3 max-h-80 overflow-auto">
+            {fullText}
+          </pre>
+        </details>
+        <Button variant="outline" size="sm" onClick={begin}>
+          다시 시도
+        </Button>
+      </div>
+    );
+  }
+
+  if (status === "done" && !parsedFromStream && !fullText) {
+    return (
+      <div className="border-l-4 border-destructive bg-card p-6 space-y-3">
+        <p className="text-sm font-medium text-destructive">
+          AI 서버가 응답하지 않았습니다.
         </p>
         <Button variant="outline" size="sm" onClick={begin}>
           다시 시도

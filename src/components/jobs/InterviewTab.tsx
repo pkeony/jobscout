@@ -130,6 +130,26 @@ export function InterviewTab({ job, onCompleted }: Props) {
     );
   }
 
+  if (status === "done" && !parsedFromStream && fullText) {
+    return (
+      <div className="border-l-4 border-accent bg-card p-6 space-y-3">
+        <p className="text-sm font-bold">응답 형식이 예상과 달라요</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          카테고리 분포 (기술 5 · 인성 3 · 상황 2) 또는 개수 (질문 10 · 팁 4) 조건 위반 가능성. 재시도하면 해결되는 경우가 많아요.
+        </p>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">원문 보기</summary>
+          <pre className="mt-2 whitespace-pre-wrap bg-muted p-3 max-h-80 overflow-auto">
+            {fullText}
+          </pre>
+        </details>
+        <Button variant="outline" size="sm" onClick={begin}>
+          다시 시도
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="border-2 border-dashed border-border rounded-lg p-12 text-center">
       <p className="text-base font-bold mb-2">면접 예상질문을 생성합니다</p>

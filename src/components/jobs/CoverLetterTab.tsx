@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CoverLetterView } from "@/components/cover-letter/CoverLetterView";
+import { ImproveSection } from "@/components/cover-letter/ImproveSection";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { addCoverLetterHistoryEntry } from "@/lib/storage/cover-letter-history";
 import {
@@ -30,12 +32,14 @@ function safeParseCoverLetter(text: string): CoverLetterResult | null {
   }
 }
 
+type SubTab = "auto" | "improved";
+
 interface Props {
   job: Job;
   onCompleted: () => void;
 }
 
-export function CoverLetterTab({ job, onCompleted }: Props) {
+function AutoSection({ job, onCompleted }: Props) {
   const [cachedResult, setCachedResult] = useState<CoverLetterResult | null>(
     job.latestCoverLetter?.coverLetterResult ?? null,
   );
@@ -110,6 +114,9 @@ export function CoverLetterTab({ job, onCompleted }: Props) {
     setTimeout(() => setCopied(false), 2000);
   }, [result]);
 
+  const parseFailed =
+    status === "done" && !parsedFromStream && fullText.length > 0;
+
   if (result) {
     return (
       <div className="space-y-6">
@@ -163,12 +170,24 @@ export function CoverLetterTab({ job, onCompleted }: Props) {
           자소서 생성에 실패했습니다
         </p>
         <p className="text-sm text-muted-foreground">{friendlyError(error)}</p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={begin}
-          disabled={!activeSlot}
-        >
+        <Button variant="outline" size="sm" onClick={begin} disabled={!activeSlot}>
+          다시 시도
+        </Button>
+      </div>
+    );
+  }
+
+  if (parseFailed) {
+    return (
+      <div className="border-l-4 border-accent bg-card p-6 space-y-3">
+        <p className="text-sm font-medium">응답 형식이 예상과 달라요. 재시도하면 해결되는 경우가 많아요.</p>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">원문 보기</summary>
+          <pre className="mt-2 whitespace-pre-wrap bg-muted p-3 max-h-80 overflow-auto">
+            {fullText}
+          </pre>
+        </details>
+        <Button variant="outline" size="sm" onClick={begin} disabled={!activeSlot}>
           다시 시도
         </Button>
       </div>
@@ -234,6 +253,116 @@ export function CoverLetterTab({ job, onCompleted }: Props) {
       >
         자소서 생성 시작 →
       </Button>
+    </div>
+  );
+}
+
+function RefineCta({ job }: { job: Job }) {
+  const [hasAuto, setHasAuto] = useState(false);
+  const [hasImproved, setHasImproved] = useState(false);
+
+  const sync = useCallback(() => {
+    if (typeof window === "undefined") return;
+    setHasAuto(!!sessionStorage.getItem("jobscout:coverLetterResult"));
+    setHasImproved(!!sessionStorage.getItem("jobscout:coverLetterImproveResult"));
+  }, []);
+
+  useEffect(() => {
+    sync();
+    window.addEventListener("focus", sync);
+    return () => window.removeEventListener("focus", sync);
+  }, [sync]);
+
+  const hasAnyCoverLetter = hasAuto || hasImproved;
+  const available = job.hasInterview && hasAnyCoverLetter;
+  const source = hasImproved && !hasAuto ? "improved" : "auto";
+
+  return (
+    <div className="mt-6 p-5 bg-card border border-border rounded-lg elevation-sm">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold text-accent">STAGE 2</span>
+            <h3 className="text-sm font-bold">자소서 보강 (v1)</h3>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {!job.hasInterview
+              ? "면접 질문을 먼저 생성하면 질문이 드러낸 자소서 약점을 추출해 v1 을 만들어드려요."
+              : !hasAnyCoverLetter
+                ? "자동 생성 또는 첨삭으로 자소서 초안을 먼저 준비하세요."
+                : "면접 질문 기반으로 자소서 약점 추출 → 재작성 v1 생성"}
+          </p>
+        </div>
+        <Link
+          href={available ? `/cover-letter/refine?source=${source}` : "#"}
+          aria-disabled={!available}
+          onClick={(e) => {
+            if (!available) e.preventDefault();
+          }}
+          className={
+            available
+              ? "inline-flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground text-sm font-bold rounded-md hover:bg-accent/90"
+              : "inline-flex items-center gap-2 px-4 py-2 bg-muted text-muted-foreground text-sm rounded-md cursor-not-allowed"
+          }
+        >
+          보강 시작
+          <span>→</span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export function CoverLetterTab({ job, onCompleted }: Props) {
+  const [subTab, setSubTab] = useState<SubTab>(() => {
+    if (typeof window === "undefined") return "auto";
+    const hasImproved = !!sessionStorage.getItem("jobscout:coverLetterImproveResult");
+    if (!job.latestCoverLetter && hasImproved) return "improved";
+    return "auto";
+  });
+  const userSelectedRef = useRef(false);
+
+  // 포커스 복귀 시 자동 탭 재평가 — 단 사용자가 명시적으로 탭을 바꾼 뒤에는 존중
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sync = () => {
+      if (userSelectedRef.current) return;
+      const hasImproved = !!sessionStorage.getItem("jobscout:coverLetterImproveResult");
+      if (!job.latestCoverLetter && hasImproved) {
+        setSubTab("improved");
+      }
+    };
+    window.addEventListener("focus", sync);
+    return () => window.removeEventListener("focus", sync);
+  }, [job.latestCoverLetter]);
+
+  const handleSubTabChange = (v: string) => {
+    userSelectedRef.current = true;
+    setSubTab(v as SubTab);
+  };
+
+  return (
+    <div className="space-y-0">
+      <Tabs value={subTab} onValueChange={handleSubTabChange}>
+        <TabsList variant="line" className="mb-6">
+          <TabsTrigger value="auto">자동 생성</TabsTrigger>
+          <TabsTrigger value="improved">기존 자소서 첨삭</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="auto">
+          <AutoSection job={job} onCompleted={onCompleted} />
+        </TabsContent>
+
+        <TabsContent value="improved">
+          <ImproveSection
+            jdText={job.jdText}
+            analysisResult={job.latestAnalyze?.analysisResult}
+            focusPosition={job.focusPosition}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <RefineCta job={job} />
     </div>
   );
 }

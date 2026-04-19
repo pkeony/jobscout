@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from"react";
+import { Suspense, useEffect, useMemo, useState } from"react";
 import Link from"next/link";
 import { useRouter, useSearchParams } from"next/navigation";
 import { AppShell } from"@/components/app-shell";
 import { FadeIn } from"@/components/motion";
 import { Skeleton } from"@/components/ui/skeleton";
 import { RefineFromInterviewSection } from"@/components/cover-letter/RefineFromInterviewSection";
+import { hashJdText } from"@/lib/storage/job-index";
 
 type V0Source ="auto" |"improved";
 
@@ -31,6 +32,11 @@ function CoverLetterRefineInner() {
  setJdText(text);
  }, [router]);
 
+ const backHref = useMemo(() => {
+ if (!jdText) return"/jobs";
+ return`/jobs/${hashJdText(jdText)}?tab=cover-letter`;
+ }, [jdText]);
+
  if (!jdText) {
  return (
  <main className="flex min-h-screen items-center justify-center">
@@ -47,10 +53,10 @@ function CoverLetterRefineInner() {
  <div className="max-w-6xl mx-auto space-y-0">
  <FadeIn>
  <Link
- href="/cover-letter"
+ href={backHref}
  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors duration-75 mb-8"
  >
- ← 초안으로 돌아가기
+ ← 공고 워크스페이스로
  </Link>
  <div className="mb-12">
  <span className="inline-block bg-accent text-accent-foreground px-2 py-0.5 text-[10px] font-bold mb-4">

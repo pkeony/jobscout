@@ -6,6 +6,7 @@ import { MatchResultView } from "@/components/match/MatchResultView";
 import { ProfileForm } from "@/components/match/ProfileForm";
 import { Button } from "@/components/ui/button";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
+import { downloadMatchAsTxt } from "@/lib/text-export";
 import { addHistoryEntry } from "@/lib/storage/match-history";
 import {
   addProfile,
@@ -123,6 +124,28 @@ export function MatchTab({ job, onCompleted }: Props) {
   if (result) {
     return (
       <div className="space-y-6">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadMatchAsTxt(result, {
+                company: job.companyName,
+                jobTitle: job.jobTitle,
+              })
+            }
+          >
+            .txt 다운로드
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowForm(true)}
+            disabled={status === "streaming"}
+          >
+            다른 프로필로 매칭
+          </Button>
+        </div>
         <MatchResultView result={result} />
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground">
@@ -132,14 +155,6 @@ export function MatchTab({ job, onCompleted }: Props) {
                 ? `프로필: ${job.latestMatch.profileLabel}`
                 : ""}
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowForm(true)}
-            disabled={status === "streaming"}
-          >
-            다른 프로필로 매칭
-          </Button>
         </div>
         {showForm && activeSlot && (
           <div className="pt-4 border-t border-border">
