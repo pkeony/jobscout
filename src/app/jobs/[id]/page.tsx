@@ -243,6 +243,39 @@ function JobWorkspaceInner() {
     );
   }
 
+  // 분석 미완료 공고: full-screen progress 모드.
+  // 분석 완료 시 onCompleted → reloadJob → hasAnalyze=true → 정상 탭 UI 로 전환.
+  if (!job.hasAnalyze) {
+    return (
+      <AppShell
+        ribbonLeft={<>공고 분석</>}
+        ribbonRight={<>STATUS: PENDING</>}
+      >
+        <div className="max-w-6xl mx-auto">
+          <Link
+            href="/jobs"
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-4"
+          >
+            ← 공고 목록
+          </Link>
+          <p className="text-sm text-muted-foreground mb-1">
+            {job.companyName}
+            {job.focusPosition ? ` · ${job.focusPosition}` : ""}
+          </p>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-8">
+            {job.jobTitle}
+          </h1>
+          <AnalyzeTab
+            key={`analyze-${job.id}`}
+            job={job}
+            autoStart={autoStartFlag}
+            onCompleted={reloadJob}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       ribbonLeft={<>공고 워크스페이스</>}
