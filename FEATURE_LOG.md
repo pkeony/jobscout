@@ -8,6 +8,20 @@
 
 ---
 
+### 2026-04-19 · txt 다운로드 4종 + 피처 D 의 v0 입력 확장
+- **기능**: 자소서·면접·매칭 결과를 .txt 로 다운로드 4곳 추가 — `/cover-letter` 자동 생성본·ImproveSection 첨삭본·D 의 v0/v1, `/interview` 10 질문+팁, `/match` 점수+강점/갭/스킬/조언. 피처 D 가 v0 후보 두 개 (자동 생성본 / 기존 자소서 첨삭본) 중 셀렉터로 선택 가능. ImproveSection 첨삭본을 sessionStorage(`jobscout:coverLetterImproveResult`) 에 박제해 D 가 입력으로 받음. 사용자 워크플로 통찰 ("1·2번 = v0 양자택일 / 3번 = v1 보강") 을 코드에 반영한 follow-up.
+- **API**: 변경 없음 (UI + sessionStorage 만).
+- **스택**: `src/lib/cover-letter-export.ts` (신규), `src/lib/text-export.ts` (신규), `src/app/cover-letter/page.tsx` (다운로드 + improve 결과 sessionStorage 저장 + 중복 helper 제거), `src/app/interview/page.tsx`, `src/app/match/page.tsx`, `src/components/cover-letter/RefineFromInterviewSection.tsx` (셀렉터 + 다운로드 + reset 흐름).
+- **구현 요약**: 사용자가 "1·2 = 첨삭 전, 3 = 보강" 으로 정신 모델 정리해준 게 핵심. D 가 두 v0 후보 모두 받게 확장 (sessionStorage 키 분리, 셀렉터 UI). 다음 세션 IA 재설계 (페이지 분리) 의 데이터 모델 토대. 다운로드 helper 는 도메인별 1파일 (cover-letter-export, text-export) 로 분리.
+- **커밋**: `043e8ae`
+
+### 2026-04-19 · 자소서↔면접 역추적 첨삭 (피처 D · agent-like 파이프라인)
+- **기능**: 자소서 v0 + interview 결과를 LLM 1→2 로 체이닝. 신규 엔드포인트 2개 — `/api/cover-letter-trace` (각 면접 질문의 intent 로 자소서 약점 3~8개 추출) + `/api/cover-letter-refine` (선택된 약점만 주입해서 v1 생성, 4섹션 고정 유지). UI 는 자소서 페이지 하단 통합 — 약점 카드 체크박스 → diff 뷰 + changeNotes 툴팁. eval `cover-letter-trace` target 신설 — 같은 cover-letter judge/rule 을 v0/v1 양쪽 적용 → judgeDelta primary KPI + improvedRate · sub-indicator delta.
+- **API**: `/api/cover-letter-trace`, `/api/cover-letter-refine` (둘 다 SSE, JSON body, MAX_ATTEMPTS=2).
+- **스택**: `src/types/index.ts` (Zod 6 schema), `src/lib/ai/schemas.ts` (Gemini OpenAPI 2개), `src/lib/prompts/cover-letter-{trace,refine}.ts`, `src/app/api/cover-letter-{trace,refine}/route.ts`, `src/components/cover-letter/{RefineFromInterviewSection,CoverLetterDiffView}.tsx` (npm `diff@9.0.0`), `eval/{types.ts,cli.ts,runner.ts,rules/cover-letter-trace.ts,runners/cover-letter-trace.ts,build-trace-goldset.ts,goldset/cover-letter-traces.jsonl}`, `docs/design-docs/cover-letter-trace.md`.
+- **구현 요약**: Plan 모드 5 phase + worktree 첫 실전. eval Round 1 baseline **judgeDelta=-0.028** (refine 이 v0 의 STAR 라벨을 떼고 매끄러운 산문으로 다시 써서 cover-letter judge 의 STAR 축 fail) → Round 2 **+0.000** (refine 프롬프트에 "v0 STAR 라벨 보존" 한 문장 추가로 회복). Plan 위험표의 "judgeDelta 음수" 시나리오 정확히 재현 + spillover (evidenceQuestionMatch 98→90%) 까지 실측. Phase E 의 미시 튜닝 루프가 피처 단위 개발에서도 그대로 작동.
+- **커밋**: `9bbba9d`
+
 ### 2026-04-19 · PORTFOLIO.md eval 반영 + RETROSPECTIVE.md 신규
 - **기능**: Phase E1~E3 튜닝 루프 종결 시점에 프로젝트 문서 최신화. PORTFOLIO.md 에 eval 인프라·운영 교훈·Phase 회고 테이블·블로그 11편 맵·면접 어필 포인트 3개 추가. RETROSPECTIVE.md 신규 — Phase 구조·잘한 점 6개·아쉬운 점 4개·이식 패턴·블로그 맵·별점 포함.
 - **API**: 없음 (문서만).
