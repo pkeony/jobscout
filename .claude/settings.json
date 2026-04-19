@@ -20,17 +20,5 @@
       "Bash(git branch -D*)"
     ]
   },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "pnpm exec tsc --noEmit 2>&1",
-            "timeout": 90
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }

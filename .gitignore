@@ -43,6 +43,10 @@ next-env.d.ts
 
 # claude code — local-only overrides
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # eval 리포트는 실행할 때마다 생기니 커밋 안 함 (골든셋만 커밋)
 /eval/reports/
+
+# 로컬 수동 QA 용 샘플 파일 (테스트용 자소서·이력서 등)
+/test-fixtures/
