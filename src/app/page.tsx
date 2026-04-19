@@ -3,7 +3,7 @@
 import { useState, useCallback } from"react";
 import { useRouter } from"next/navigation";
 import Link from"next/link";
-import { hashJdText } from "@/lib/storage/job-index";
+import { getJobKey } from "@/lib/storage/job-index";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from"@/components/ui/tabs";
 import { Textarea } from"@/components/ui/textarea";
 import { Button } from"@/components/ui/button";
@@ -52,7 +52,7 @@ export default function HomePage() {
  } else {
  sessionStorage.removeItem("jobscout:focusPosition");
  }
- router.push(`/jobs/${hashJdText(text)}?tab=analyze&autostart=1`);
+ router.push(`/jobs/${getJobKey(text, focusPosition)}?tab=analyze&autostart=1`);
  },
  [router],
  );

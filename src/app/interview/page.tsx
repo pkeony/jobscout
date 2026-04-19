@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { hashJdText } from "@/lib/storage/job-index";
+import { getJobKey } from "@/lib/storage/job-index";
 
 export default function Page() {
   const router = useRouter();
@@ -16,7 +16,8 @@ export default function Page() {
       router.replace("/");
       return;
     }
-    router.replace(`/jobs/${hashJdText(jdText)}?tab=interview`);
+    const focus = sessionStorage.getItem("jobscout:focusPosition");
+    router.replace(`/jobs/${getJobKey(jdText, focus)}?tab=interview`);
   }, [router]);
 
   return null;

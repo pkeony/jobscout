@@ -19,7 +19,7 @@ import { AnalyzeTab } from "@/components/jobs/AnalyzeTab";
 import { MatchTab } from "@/components/jobs/MatchTab";
 import { CoverLetterTab } from "@/components/jobs/CoverLetterTab";
 import { InterviewTab } from "@/components/jobs/InterviewTab";
-import { findJobById, hashJdText, type Job } from "@/lib/storage/job-index";
+import { findJobById, getJobKey, type Job } from "@/lib/storage/job-index";
 import { loadJobMeta, saveJobMeta } from "@/lib/storage/job-meta";
 import { JOB_STATUS_LABEL, type JobStatus } from "@/types";
 import { cn } from "@/lib/utils";
@@ -100,7 +100,10 @@ function JobWorkspaceInner() {
     if (found) return found;
     if (typeof window === "undefined") return null;
     const pendingJdText = sessionStorage.getItem("jobscout:jdText");
-    if (!pendingJdText || hashJdText(pendingJdText) !== jobId) return null;
+    if (!pendingJdText) return null;
+    const focus =
+      sessionStorage.getItem("jobscout:focusPosition") ?? undefined;
+    if (getJobKey(pendingJdText, focus) !== jobId) return null;
     const metaRaw = sessionStorage.getItem("jobscout:crawlMeta");
     let crawl: { title?: string; company?: string; url?: string } = {};
     if (metaRaw) {
@@ -110,8 +113,6 @@ function JobWorkspaceInner() {
         /* ignore */
       }
     }
-    const focus =
-      sessionStorage.getItem("jobscout:focusPosition") ?? undefined;
     const meta = loadJobMeta(jobId);
     const pending: Job = {
       id: jobId,

@@ -34,12 +34,27 @@ export interface Job {
 }
 
 /** djb2 32-bit → 8자 hex. URL 안전, 결정적, 80 entries 에서 충돌 < 1e-6. */
-export function hashJdText(jdText: string): string {
+export function hashString(s: string): string {
   let h = 5381;
-  for (let i = 0; i < jdText.length; i++) {
-    h = ((h << 5) + h + jdText.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
   }
   return h.toString(16).padStart(8, "0");
+}
+
+/** jdText 만 hash (기존 Job 의 기본 키, focusPosition 없는 경우). */
+export function hashJdText(jdText: string): string {
+  return hashString(jdText);
+}
+
+/**
+ * Job 키 = jdText hash (+ "-" + focusPosition hash 가 있을 때).
+ * 같은 공고라도 focusPosition 이 다르면 서로 다른 Job 으로 분리된다.
+ */
+export function getJobKey(jdText: string, focusPosition?: string | null): string {
+  const base = hashString(jdText);
+  if (!focusPosition) return base;
+  return `${base}-${hashString(focusPosition)}`;
 }
 
 interface Accumulator {
@@ -69,14 +84,15 @@ function ensureAcc(
   jdText: string,
   carrier: MetaCarrier,
 ): Accumulator {
-  const id = hashJdText(jdText);
+  // Job 식별자는 jdText + focusPosition 조합. 같은 공고의 다른 포지션은 서로 다른 Job.
+  const id = getJobKey(jdText, carrier.focusPosition);
   const existing = map.get(id);
   if (existing) {
     if (carrier.savedAt > existing.metaSavedAt) {
       existing.jobTitle = carrier.jobTitle;
       existing.companyName = carrier.companyName;
       existing.jobUrl = carrier.jobUrl;
-      existing.focusPosition = carrier.focusPosition;
+      // focusPosition 은 그룹 키에 이미 포함되어 있으므로 고정 (update X)
       existing.metaSavedAt = carrier.savedAt;
     }
     return existing;
@@ -168,8 +184,11 @@ export function buildJobIndex(): Job[] {
     .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
 }
 
-export function findJobByJdText(jdText: string): Job | null {
-  const id = hashJdText(jdText);
+export function findJobByJdText(
+  jdText: string,
+  focusPosition?: string | null,
+): Job | null {
+  const id = getJobKey(jdText, focusPosition);
   return buildJobIndex().find((j) => j.id === id) ?? null;
 }
 

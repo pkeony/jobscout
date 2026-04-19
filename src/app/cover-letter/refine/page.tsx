@@ -7,7 +7,7 @@ import { AppShell } from"@/components/app-shell";
 import { FadeIn } from"@/components/motion";
 import { Skeleton } from"@/components/ui/skeleton";
 import { RefineFromInterviewSection } from"@/components/cover-letter/RefineFromInterviewSection";
-import { hashJdText } from"@/lib/storage/job-index";
+import { getJobKey } from"@/lib/storage/job-index";
 
 type V0Source ="auto" |"improved";
 
@@ -34,7 +34,10 @@ function CoverLetterRefineInner() {
 
  const backHref = useMemo(() => {
  if (!jdText) return"/jobs";
- return`/jobs/${hashJdText(jdText)}?tab=cover-letter`;
+ const focus = typeof window !=="undefined"
+ ? sessionStorage.getItem("jobscout:focusPosition")
+ : null;
+ return`/jobs/${getJobKey(jdText, focus)}?tab=cover-letter`;
  }, [jdText]);
 
  if (!jdText) {

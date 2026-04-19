@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { hashJdText } from "@/lib/storage/job-index";
+import { getJobKey } from "@/lib/storage/job-index";
 
 function AnalyzeRedirect() {
   const router = useRouter();
@@ -22,7 +22,8 @@ function AnalyzeRedirect() {
       router.replace("/");
       return;
     }
-    router.replace(`/jobs/${hashJdText(jdText)}?tab=analyze`);
+    const focus = sessionStorage.getItem("jobscout:focusPosition");
+    router.replace(`/jobs/${getJobKey(jdText, focus)}?tab=analyze`);
   }, [router, searchParams]);
 
   return null;

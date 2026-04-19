@@ -9,7 +9,7 @@ import { PositionPicker } from "@/components/analyze/PositionPicker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FadeIn } from "@/components/motion";
-import { hashJdText } from "@/lib/storage/job-index";
+import { getJobKey } from "@/lib/storage/job-index";
 
 interface CrawlMeta {
   title: string;
@@ -49,7 +49,7 @@ export default function NewJobPage() {
       } else {
         sessionStorage.removeItem("jobscout:focusPosition");
       }
-      router.push(`/jobs/${hashJdText(text)}?tab=analyze&autostart=1`);
+      router.push(`/jobs/${getJobKey(text, focusPosition)}?tab=analyze&autostart=1`);
     },
     [router],
   );
