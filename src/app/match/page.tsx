@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { extractMatchJson } from "@/lib/prompts/match";
 import { AnalysisResultSchema, MatchResultSchema, type AnalysisResult, type MatchResult, type ProfileSlot, type SkillMatch, type UserProfile } from "@/types";
+import { downloadMatchAsTxt } from "@/lib/text-export";
 import type { StreamEvent } from "@/lib/ai/types";
 import {
   addProfile,
@@ -445,6 +446,21 @@ export default function MatchPage() {
     reset();
   };
 
+  const handleDownload = () => {
+    if (!matchResult) return;
+    let meta: { company?: string; jobTitle?: string } = {};
+    try {
+      const raw = sessionStorage.getItem("jobscout:analyzeResult");
+      if (raw) {
+        const a = AnalysisResultSchema.parse(JSON.parse(raw));
+        meta = { company: a.companyInfo.name, jobTitle: a.roleTitle };
+      }
+    } catch {
+      // stale 캐시 무시
+    }
+    downloadMatchAsTxt(matchResult, meta);
+  };
+
   if (!jdText) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -656,7 +672,10 @@ export default function MatchPage() {
                     </p>
                   </div>
 
-                  <div className="mt-12 flex justify-center">
+                  <div className="mt-12 flex justify-center items-center gap-3 flex-wrap">
+                    <Button variant="outline" onClick={handleDownload}>
+                      매칭결과 .txt
+                    </Button>
                     <Button
                       onClick={() => router.push("/cover-letter")}
                       className="bg-secondary text-secondary-foreground px-10 py-6 text-sm uppercase tracking-[0.3em] font-bold hover:bg-foreground hover:text-background transition-colors duration-75 h-auto"

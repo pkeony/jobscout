@@ -12,6 +12,7 @@ import {
 } from "@/types";
 import { addInterviewHistoryEntry } from "@/lib/storage/interview-history";
 import { getActiveProfile } from "@/lib/storage/profiles";
+import { downloadInterviewAsTxt } from "@/lib/text-export";
 import type { StreamEvent } from "@/lib/ai/types";
 
 function readAnalysisExtras(): Record<string, unknown> {
@@ -318,6 +319,21 @@ export default function InterviewPage() {
     }
   };
 
+  const handleDownload = () => {
+    if (!interviewResult) return;
+    let meta: { company?: string; jobTitle?: string } = {};
+    try {
+      const raw = sessionStorage.getItem("jobscout:analyzeResult");
+      if (raw) {
+        const a = AnalysisResultSchema.parse(JSON.parse(raw));
+        meta = { company: a.companyInfo.name, jobTitle: a.roleTitle };
+      }
+    } catch {
+      // stale 캐시 무시
+    }
+    downloadInterviewAsTxt(interviewResult, meta);
+  };
+
   if (!jdText) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -395,7 +411,16 @@ export default function InterviewPage() {
 
         {/* ───────── 결과 ───────── */}
         {effectiveStatus === "done" && interviewResult && (
-          <InterviewResultView result={interviewResult} />
+          <>
+            <FadeIn>
+              <div className="flex justify-end mb-6">
+                <Button variant="outline" size="sm" onClick={handleDownload}>
+                  면접질문 .txt
+                </Button>
+              </div>
+            </FadeIn>
+            <InterviewResultView result={interviewResult} />
+          </>
         )}
 
         {/* 파싱 실패 */}

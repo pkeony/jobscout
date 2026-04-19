@@ -20,6 +20,10 @@ import { FadeIn } from "@/components/motion";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { AppShell } from "@/components/app-shell";
 import { RefineFromInterviewSection } from "@/components/cover-letter/RefineFromInterviewSection";
+import {
+  downloadCoverLetterAsTxt,
+  flattenCoverLetterToText,
+} from "@/lib/cover-letter-export";
 import { friendlyError } from "@/lib/utils";
 
 function readAnalysisExtras(): Record<string, unknown> {
@@ -45,16 +49,6 @@ function safeParseCoverLetter(text: string): CoverLetterResult | null {
   } catch {
     return null;
   }
-}
-
-function flattenCoverLetterToText(r: CoverLetterResult): string {
-  return [
-    `${r.companyName} · ${r.jobTitle}`,
-    "",
-    ...r.sections.flatMap((s) => [`## ${s.heading}`, "", ...s.paragraphs, ""]),
-  ]
-    .join("\n")
-    .trim();
 }
 
 /* ─── 스켈레톤 ─── */
@@ -302,6 +296,16 @@ export default function CoverLetterPage() {
                     <Button variant="outline" size="sm" onClick={handleCopy}>
                       {copied ? "복사됨!" : "클립보드에 복사"}
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        effectiveResult &&
+                        downloadCoverLetterAsTxt(effectiveResult, "초안")
+                      }
+                    >
+                      초안 .txt
+                    </Button>
                     <Button variant="outline" size="sm" onClick={handleRetry}>
                       재생성
                     </Button>
@@ -419,6 +423,15 @@ function ImproveSection({ jdText }: { jdText: string }) {
     return safeParseImprove(improveText);
   }, [improveStatus, improveText]);
 
+  // 첨삭 결과를 sessionStorage 에 저장 — D 피처(RefineFromInterviewSection) 가 v0 후보로 사용
+  useEffect(() => {
+    if (!improveResult) return;
+    sessionStorage.setItem(
+      "jobscout:coverLetterImproveResult",
+      JSON.stringify(improveResult.revised),
+    );
+  }, [improveResult]);
+
   const improveParseFailed =
     improveStatus === "done" && !improveResult && improveText.length > 0;
 
@@ -462,6 +475,15 @@ function ImproveSection({ jdText }: { jdText: string }) {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleImproveCopy}>
               {improveCopied ? "복사됨!" : "수정본 복사"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                downloadCoverLetterAsTxt(improveResult.revised, "첨삭본")
+              }
+            >
+              첨삭본 .txt
             </Button>
             <Button variant="ghost" size="sm" onClick={resetImprove}>
               다른 자소서

@@ -19,7 +19,15 @@ import type { StreamEvent } from "@/lib/ai/types";
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
 import { friendlyError } from "@/lib/utils";
+import { downloadCoverLetterAsTxt } from "@/lib/cover-letter-export";
 import { CoverLetterDiffView } from "./CoverLetterDiffView";
+
+type V0Source = "auto" | "improved";
+
+const SOURCE_LABEL: Record<V0Source, string> = {
+  auto: "자동 생성본",
+  improved: "기존 자소서 첨삭본",
+};
 
 function readAnalysisExtras(): {
   analysisResult?: AnalysisResult;
@@ -54,7 +62,9 @@ function safeParseSession<T>(
 }
 
 export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
-  const [v0, setV0] = useState<CoverLetterResult | null>(null);
+  const [v0Auto, setV0Auto] = useState<CoverLetterResult | null>(null);
+  const [v0Improved, setV0Improved] = useState<CoverLetterResult | null>(null);
+  const [v0Source, setV0Source] = useState<V0Source>("auto");
   const [interview, setInterview] = useState<InterviewResult | null>(null);
   const [traceResult, setTraceResult] = useState<CoverLetterTraceResult | null>(null);
   const [refineResult, setRefineResult] = useState<CoverLetterRefineResult | null>(null);
@@ -63,10 +73,19 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
   const trace = useStreamingResponse<StreamEvent>("/api/cover-letter-trace");
   const refine = useStreamingResponse<StreamEvent>("/api/cover-letter-refine");
 
-  // sessionStorage 동기화 — page mount + 같은 페이지 내 자소서 생성/면접 다녀온 직후 모두 커버
+  // sessionStorage 동기화 — 두 종류 v0 (auto: 자동 생성본, improved: 기존 자소서 첨삭본) 모두 감지
   useEffect(() => {
     const sync = () => {
-      setV0(safeParseSession("jobscout:coverLetterResult", CoverLetterResultSchema));
+      const auto = safeParseSession<CoverLetterResult>(
+        "jobscout:coverLetterResult",
+        CoverLetterResultSchema,
+      );
+      const improved = safeParseSession<CoverLetterResult>(
+        "jobscout:coverLetterImproveResult",
+        CoverLetterResultSchema,
+      );
+      setV0Auto(auto);
+      setV0Improved(improved);
       setInterview(safeParseSession("jobscout:interviewResult", InterviewResultSchema));
     };
     sync();
@@ -74,7 +93,13 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
     return () => window.removeEventListener("focus", sync);
   }, []);
 
-  // trace 결과 파싱 — done 시점에 fullText 가 완전한 JSON
+  // 초기 source 자동 결정: auto 가 있으면 auto, 없고 improved 만 있으면 improved
+  useEffect(() => {
+    if (!v0Auto && v0Improved) setV0Source("improved");
+    else if (v0Auto && !v0Improved) setV0Source("auto");
+  }, [v0Auto, v0Improved]);
+
+  // trace 결과 파싱
   useEffect(() => {
     if (trace.status !== "done" || !trace.fullText) return;
     try {
@@ -82,7 +107,7 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
       setTraceResult(parsed);
       setSelectedIds(new Set(parsed.weaknesses.map((w) => w.id)));
     } catch {
-      // 파싱 실패는 trace.status 가 done 인데 traceResult null → 별도 안내
+      // 파싱 실패는 별도 안내
     }
   }, [trace.status, trace.fullText]);
 
@@ -95,6 +120,26 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
       // 파싱 실패
     }
   }, [refine.status, refine.fullText]);
+
+  const v0 = v0Source === "improved" ? v0Improved : v0Auto;
+
+  const resetAll = useCallback(() => {
+    setTraceResult(null);
+    setRefineResult(null);
+    setSelectedIds(new Set());
+    trace.reset();
+    refine.reset();
+  }, [trace, refine]);
+
+  const handleSourceChange = useCallback(
+    (source: V0Source) => {
+      if (source === v0Source) return;
+      setV0Source(source);
+      // v0 가 바뀌면 이전 trace/refine 결과는 무효
+      resetAll();
+    },
+    [v0Source, resetAll],
+  );
 
   const handleStartTrace = useCallback(() => {
     if (!v0 || !interview) return;
@@ -146,8 +191,11 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
     [refine.status, refineResult, refine.fullText],
   );
 
-  // 자소서 v0 또는 면접 결과 누락 — disabled + CTA
-  if (!v0 || !interview) {
+  const hasAnyV0 = Boolean(v0Auto || v0Improved);
+  const showSourceSelector = Boolean(v0Auto && v0Improved);
+
+  // v0 (둘 중 하나도 없음) 또는 면접 결과 누락 — disabled + CTA
+  if (!hasAnyV0 || !interview) {
     return (
       <div className="border-t-4 border-foreground p-8 bg-muted/30">
         <div className="max-w-2xl mx-auto space-y-4">
@@ -159,12 +207,13 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
               면접 질문으로 자소서 보강
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              자소서와 예상 면접 질문이 모두 있어야 약점을 추출할 수 있습니다.
-              {!v0 && " 위 단계에서 자소서를 먼저 생성하세요."}
-              {v0 && !interview && " 아래 링크로 면접 질문을 먼저 생성한 뒤 돌아오세요."}
+              자소서(자동 생성본 또는 기존 자소서 첨삭본)와 예상 면접 질문이 모두 있어야 약점을
+              추출할 수 있습니다.
+              {!hasAnyV0 && " 위 단계에서 자소서를 먼저 생성하거나 기존 자소서를 업로드해 첨삭하세요."}
+              {hasAnyV0 && !interview && " 아래 링크로 면접 질문을 먼저 생성한 뒤 돌아오세요."}
             </p>
           </div>
-          {v0 && !interview && (
+          {hasAnyV0 && !interview && (
             <Link
               href="/interview"
               className="inline-block bg-secondary text-secondary-foreground px-4 py-2 text-xs uppercase tracking-widest font-bold hover:opacity-90"
@@ -192,17 +241,46 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
         </p>
       </div>
 
+      {/* ───────── v0 source 셀렉터 (둘 다 있을 때만) ───────── */}
+      {showSourceSelector && (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold">
+            보강할 자소서 선택
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {(["auto", "improved"] as const).map((src) => {
+              const active = src === v0Source;
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => handleSourceChange(src)}
+                  className={`px-4 py-2 text-xs uppercase tracking-widest font-bold border-2 transition-all duration-75 ${
+                    active
+                      ? "bg-secondary text-secondary-foreground border-secondary"
+                      : "bg-card border-foreground/10 hover:border-foreground/30"
+                  }`}
+                >
+                  {SOURCE_LABEL[src]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ───────── 1단계: trace ───────── */}
       {!traceResult && (
         <div className="space-y-3">
-          <Button onClick={handleStartTrace} disabled={trace.status === "streaming"}>
+          <Button onClick={handleStartTrace} disabled={trace.status === "streaming" || !v0}>
             {trace.status === "streaming" ? "약점 분석 중..." : "면접 질문으로 약점 분석하기"}
           </Button>
           {trace.status === "streaming" && (
             <div className="flex items-center gap-3 py-2">
               <div className="h-2.5 w-2.5 bg-secondary animate-pulse" />
               <span className="text-xs text-muted-foreground">
-                면접 질문 {interview.questions.length}개의 의도를 자소서와 매칭 중...
+                면접 질문 {interview.questions.length}개의 의도를{" "}
+                {SOURCE_LABEL[v0Source]} 과 매칭 중...
               </span>
             </div>
           )}
@@ -223,7 +301,7 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
           <div className="space-y-5">
             <div className="bg-card border-l-4 border-foreground p-5">
               <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-bold mb-2">
-                총평
+                총평 ({SOURCE_LABEL[v0Source]} 기준)
               </p>
               <p className="text-sm leading-relaxed">{traceResult.overallDiagnosis}</p>
             </div>
@@ -338,7 +416,7 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
       )}
 
       {/* ───────── 3단계: diff 뷰 ───────── */}
-      {refineResult && traceResult && (
+      {refineResult && traceResult && v0 && (
         <FadeIn>
           <div className="bg-card border-2 border-foreground/10 p-6 space-y-6">
             <CoverLetterDiffView
@@ -348,30 +426,40 @@ export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
               changeNotes={refineResult.changeNotes}
               appliedWeaknessIds={refineResult.appliedWeaknessIds}
             />
-            <div className="pt-4 border-t border-border/30 flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setRefineResult(null);
-                  refine.reset();
-                }}
-              >
-                약점 다시 선택
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setTraceResult(null);
-                  setRefineResult(null);
-                  setSelectedIds(new Set());
-                  trace.reset();
-                  refine.reset();
-                }}
-              >
-                처음부터 다시
-              </Button>
+            <div className="pt-4 border-t border-border/30 flex justify-between items-center gap-2 flex-wrap">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => downloadCoverLetterAsTxt(v0, `${v0Source}-v0-초안`)}
+                >
+                  v0 ({SOURCE_LABEL[v0Source]}) .txt
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    downloadCoverLetterAsTxt(refineResult.revised, "v1-보강")
+                  }
+                >
+                  v1 보강본 .txt
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setRefineResult(null);
+                    refine.reset();
+                  }}
+                >
+                  약점 다시 선택
+                </Button>
+                <Button variant="outline" size="sm" onClick={resetAll}>
+                  처음부터 다시
+                </Button>
+              </div>
             </div>
           </div>
         </FadeIn>
