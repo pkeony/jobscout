@@ -61,10 +61,16 @@ function safeParseSession<T>(
   }
 }
 
-export function RefineFromInterviewSection({ jdText }: { jdText: string }) {
+export function RefineFromInterviewSection({
+  jdText,
+  initialSource,
+}: {
+  jdText: string;
+  initialSource?: V0Source;
+}) {
   const [v0Auto, setV0Auto] = useState<CoverLetterResult | null>(null);
   const [v0Improved, setV0Improved] = useState<CoverLetterResult | null>(null);
-  const [v0Source, setV0Source] = useState<V0Source>("auto");
+  const [v0Source, setV0Source] = useState<V0Source>(initialSource ?? "auto");
   const [interview, setInterview] = useState<InterviewResult | null>(null);
   const [traceResult, setTraceResult] = useState<CoverLetterTraceResult | null>(null);
   const [refineResult, setRefineResult] = useState<CoverLetterRefineResult | null>(null);

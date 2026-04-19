@@ -16,6 +16,10 @@ const NAV_ITEMS = [
   { href: "/history", label: "히스토리" },
 ];
 
+function isNavActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
 interface AppShellProps {
   children: ReactNode;
   ribbonLeft?: ReactNode;
@@ -47,7 +51,7 @@ export function AppShell({
 
         <nav className="flex-1 space-y-1 p-4">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = isNavActive(pathname, item.href);
             return (
               <Link
                 key={item.href}
@@ -95,7 +99,7 @@ export function AppShell({
         <div className="fixed inset-x-0 top-12 z-20 border-b-2 border-border bg-background p-4 lg:hidden">
           <nav className="space-y-1">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = isNavActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}

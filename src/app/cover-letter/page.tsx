@@ -16,10 +16,10 @@ import { getActiveProfile } from "@/lib/storage/profiles";
 import { addCoverLetterHistoryEntry } from "@/lib/storage/cover-letter-history";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FadeIn } from "@/components/motion";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { AppShell } from "@/components/app-shell";
-import { RefineFromInterviewSection } from "@/components/cover-letter/RefineFromInterviewSection";
 import {
   downloadCoverLetterAsTxt,
   flattenCoverLetterToText,
@@ -121,6 +121,8 @@ export default function CoverLetterPage() {
   const startedRef = useRef(false);
   const [copied, setCopied] = useState(false);
   const [cachedResult, setCachedResult] = useState<CoverLetterResult | null>(null);
+  const [hasInterviewResult, setHasInterviewResult] = useState(false);
+  const [activeTab, setActiveTab] = useState<"auto" | "improved">("auto");
 
   const { status, fullText, error, start, reset } =
     useStreamingResponse<StreamEvent>("/api/cover-letter");
@@ -145,6 +147,16 @@ export default function CoverLetterPage() {
       sessionStorage.removeItem("jobscout:coverLetterResult");
     }
 
+    // default tab 결정: 자동 결과 없고 첨삭본만 있으면 improved Tab 으로 진입.
+    // 이 경우 auto API 호출은 skip — 사용자가 auto Tab 클릭 시 lazy start.
+    const hasImprovedV0 = !!sessionStorage.getItem(
+      "jobscout:coverLetterImproveResult",
+    );
+    if (hasImprovedV0) {
+      setActiveTab("improved");
+      return;
+    }
+
     const activeSlot = getActiveProfile();
     if (!activeSlot) {
       router.replace("/match");
@@ -156,6 +168,17 @@ export default function CoverLetterPage() {
       start({ jdText: text, profile: activeSlot.profile, ...readAnalysisExtras() });
     }
   }, [router, start]);
+
+  // /interview 다녀온 후 sessionStorage 동기화 — 진입 카드 활성/비활성 결정
+  useEffect(() => {
+    const sync = () =>
+      setHasInterviewResult(
+        !!sessionStorage.getItem("jobscout:interviewResult"),
+      );
+    sync();
+    window.addEventListener("focus", sync);
+    return () => window.removeEventListener("focus", sync);
+  }, []);
 
   const liveResult = useMemo<CoverLetterResult | null>(() => {
     if (status !== "done" || !fullText) return null;
@@ -223,6 +246,19 @@ export default function CoverLetterPage() {
     }
   };
 
+  // Tab 전환 — 첨삭만 있어 default 가 improved 였다가 사용자가 auto 로 전환 시 lazy start
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as "auto" | "improved");
+    if (value === "auto" && !startedRef.current && !cachedResult) {
+      const text = sessionStorage.getItem("jobscout:jdText");
+      const activeSlot = getActiveProfile();
+      if (text && activeSlot) {
+        startedRef.current = true;
+        start({ jdText: text, profile: activeSlot.profile, ...readAnalysisExtras() });
+      }
+    }
+  };
+
   if (!jdText) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -238,141 +274,143 @@ export default function CoverLetterPage() {
 
   return (
     <AppShell
-      ribbonLeft={<>자소서</>}
+      ribbonLeft={<>자소서 · STAGE 1</>}
       ribbonRight={<>STATUS: {effectiveStatus.toUpperCase()}</>}
     >
       <div className="max-w-6xl mx-auto space-y-0">
-        {/* 헤더 */}
+        {/* 헤더 (공통) */}
         <FadeIn>
-          <div className="mb-12">
+          <div className="mb-8">
             <span className="inline-block bg-secondary text-secondary-foreground px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] font-bold mb-4">
-              자동 생성
+              STAGE 1 · 초안
             </span>
             <h1 className="font-heading text-5xl md:text-7xl font-black text-foreground tracking-tight leading-none mb-4">
               자기소개서
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-              채용공고와 프로필을 기반으로 맞춤형 자기소개서 초안을 작성합니다.
+              자동 생성 또는 기존 자소서 첨삭 — 두 출발점 중 하나를 고르세요.
             </p>
           </div>
         </FadeIn>
 
-        {/* ───────── 대기/스트리밍: 스켈레톤 ───────── */}
-        {showSkeleton && (
-          <FadeIn>
-            <div className="flex items-center gap-3 mb-8">
-              <div className="h-2.5 w-2.5 bg-secondary animate-pulse" />
-              <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">
-                자기소개서 작성 중...
-              </span>
-            </div>
-            <CoverLetterSkeleton />
-          </FadeIn>
-        )}
+        {/* Stage 1 Tabs — 자동 / 첨삭 양자택일 */}
+        <FadeIn delay={0.04}>
+          <Tabs value={activeTab} onValueChange={handleTabChange} orientation="horizontal">
+            <TabsList variant="line" className="mb-8">
+              <TabsTrigger value="auto">자동 생성</TabsTrigger>
+              <TabsTrigger value="improved">기존 자소서 첨삭</TabsTrigger>
+            </TabsList>
 
-        {/* ───────── 결과 ───────── */}
-        {effectiveResult && (
-          <FadeIn>
-            <div className="bg-foreground p-1 mb-12">
-              <div className="bg-foreground px-4 py-2 border-b border-background/20 flex justify-between items-center">
-                <span className="text-[10px] uppercase tracking-widest flex items-center gap-2 text-background/80">
-                  <span className="w-2 h-2 bg-secondary" />
-                  자기소개서 초안
-                </span>
-                <div className="flex gap-2">
-                  <span className="w-3 h-3 bg-background/20" />
-                  <span className="w-3 h-3 bg-background/20" />
-                  <span className="w-3 h-3 bg-background/20" />
-                </div>
-              </div>
-              <div className="bg-card p-8">
-                <CoverLetterView result={effectiveResult} />
+            <TabsContent value="auto">
+              {/* 대기/스트리밍 스켈레톤 */}
+              {showSkeleton && (
+                <FadeIn>
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="h-2.5 w-2.5 bg-secondary animate-pulse" />
+                    <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">
+                      자기소개서 작성 중...
+                    </span>
+                  </div>
+                  <CoverLetterSkeleton />
+                </FadeIn>
+              )}
 
-                <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    {effectiveResult.sections.length}개 섹션 · 작성 완료
-                  </span>
-                  <div className="flex gap-3">
-                    <Button variant="outline" size="sm" onClick={handleCopy}>
-                      {copied ? "복사됨!" : "클립보드에 복사"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        effectiveResult &&
-                        downloadCoverLetterAsTxt(effectiveResult, "초안")
-                      }
-                    >
-                      초안 .txt
-                    </Button>
+              {/* 결과 */}
+              {effectiveResult && (
+                <FadeIn>
+                  <div className="bg-foreground p-1 mb-12">
+                    <div className="bg-foreground px-4 py-2 border-b border-background/20 flex justify-between items-center">
+                      <span className="text-[10px] uppercase tracking-widest flex items-center gap-2 text-background/80">
+                        <span className="w-2 h-2 bg-secondary" />
+                        자기소개서 초안
+                      </span>
+                      <div className="flex gap-2">
+                        <span className="w-3 h-3 bg-background/20" />
+                        <span className="w-3 h-3 bg-background/20" />
+                        <span className="w-3 h-3 bg-background/20" />
+                      </div>
+                    </div>
+                    <div className="bg-card p-8">
+                      <CoverLetterView result={effectiveResult} />
+
+                      <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-between">
+                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                          {effectiveResult.sections.length}개 섹션 · 작성 완료
+                        </span>
+                        <div className="flex gap-3">
+                          <Button variant="outline" size="sm" onClick={handleCopy}>
+                            {copied ? "복사됨!" : "클립보드에 복사"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              effectiveResult &&
+                              downloadCoverLetterAsTxt(effectiveResult, "초안")
+                            }
+                          >
+                            초안 .txt
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={handleRetry}>
+                            재생성
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </FadeIn>
+              )}
+
+              {/* 파싱 실패 */}
+              {parseFailed && (
+                <FadeIn>
+                  <div className="border-l-4 border-accent bg-card p-8 space-y-4">
+                    <h3 className="font-heading text-xl font-bold text-accent">
+                      응답 형식이 예상과 달라요
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      서버가 JSON 스키마를 따르지 않는 응답을 반환했습니다. 재시도하면 해결되는 경우가 많아요.
+                    </p>
+                    <details className="text-xs text-muted-foreground">
+                      <summary className="cursor-pointer">원문 보기</summary>
+                      <pre className="mt-2 whitespace-pre-wrap bg-muted p-3 max-h-80 overflow-auto">
+                        {fullText}
+                      </pre>
+                    </details>
                     <Button variant="outline" size="sm" onClick={handleRetry}>
-                      재생성
+                      다시 시도
                     </Button>
                   </div>
-                </div>
-              </div>
-            </div>
-          </FadeIn>
-        )}
+                </FadeIn>
+              )}
 
-        {/* ───────── 파싱 실패 ───────── */}
-        {parseFailed && (
-          <FadeIn>
-            <div className="border-l-4 border-accent bg-card p-8 space-y-4">
-              <h3 className="font-heading text-xl font-bold text-accent">
-                응답 형식이 예상과 달라요
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                서버가 JSON 스키마를 따르지 않는 응답을 반환했습니다. 재시도하면 해결되는 경우가 많아요.
-              </p>
-              <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">원문 보기</summary>
-                <pre className="mt-2 whitespace-pre-wrap bg-muted p-3 max-h-80 overflow-auto">
-                  {fullText}
-                </pre>
-              </details>
-              <Button variant="outline" size="sm" onClick={handleRetry}>
-                다시 시도
-              </Button>
-            </div>
-          </FadeIn>
-        )}
+              {/* 에러 */}
+              {effectiveStatus === "error" && (
+                <FadeIn>
+                  <div className="border-l-4 border-destructive bg-card p-8 space-y-4">
+                    <h3 className="font-heading text-xl font-bold text-destructive">
+                      자소서 생성에 실패했습니다
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {friendlyError(error)}
+                    </p>
+                    <Button variant="outline" size="sm" onClick={handleRetry}>
+                      다시 시도
+                    </Button>
+                  </div>
+                </FadeIn>
+              )}
+            </TabsContent>
 
-        {/* ───────── 에러 ───────── */}
-        {effectiveStatus === "error" && (
-          <FadeIn>
-            <div className="border-l-4 border-destructive bg-card p-8 space-y-4">
-              <h3 className="font-heading text-xl font-bold text-destructive">
-                자소서 생성에 실패했습니다
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {friendlyError(error)}
-              </p>
-              <Button variant="outline" size="sm" onClick={handleRetry}>
-                다시 시도
-              </Button>
-            </div>
-          </FadeIn>
-        )}
+            <TabsContent value="improved">
+              {jdText && <ImproveSection jdText={jdText} />}
+            </TabsContent>
+          </Tabs>
+        </FadeIn>
 
-        {/* ───────── 기존 자소서 개선 ───────── */}
-        {jdText && (
-          <FadeIn delay={0.06}>
-            <ImproveSection jdText={jdText} />
-          </FadeIn>
-        )}
-
-        {/* ───────── 피처 D: 면접 질문으로 자소서 보강 ───────── */}
-        {jdText && (
-          <FadeIn delay={0.08}>
-            <RefineFromInterviewSection jdText={jdText} />
-          </FadeIn>
-        )}
-
-        {/* 하단 액션 카드 */}
+        {/* 하단 액션 카드 — Stage 2 진입 포함 */}
         <FadeIn delay={0.09}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12">
             <button
               onClick={() => router.push("/match")}
               className="p-6 bg-muted border-2 border-foreground/10 hover:border-secondary text-left transition-all duration-75 hover:-translate-y-0.5"
@@ -388,6 +426,31 @@ export default function CoverLetterPage() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-secondary">02</span>
               <h4 className="font-heading text-lg font-bold mt-2 mb-1">면접 예상질문</h4>
               <p className="text-xs text-muted-foreground">채용공고 기반 면접 예상 질문과 모범 답안을 생성합니다.</p>
+            </button>
+            <button
+              onClick={() => {
+                if (!hasInterviewResult) return;
+                const hasImproved = !!sessionStorage.getItem(
+                  "jobscout:coverLetterImproveResult",
+                );
+                const hasAuto = !!sessionStorage.getItem(
+                  "jobscout:coverLetterResult",
+                );
+                const source = hasImproved && !hasAuto ? "improved" : "auto";
+                router.push(`/cover-letter/refine?source=${source}`);
+              }}
+              disabled={!hasInterviewResult}
+              className="p-6 bg-muted border-2 border-secondary text-left transition-all duration-75 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:border-foreground/10"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-widest text-secondary">
+                NEXT
+              </span>
+              <h4 className="font-heading text-lg font-bold mt-2 mb-1">자소서 보강</h4>
+              <p className="text-xs text-muted-foreground">
+                {hasInterviewResult
+                  ? "면접 질문으로 자소서 약점을 추출해 v1 을 생성합니다."
+                  : "면접 질문 먼저 생성하고 돌아오세요."}
+              </p>
             </button>
           </div>
         </FadeIn>
