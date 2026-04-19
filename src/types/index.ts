@@ -319,3 +319,26 @@ export const CoverLetterRefineResultSchema = z.object({
   changeNotes: z.array(CoverLetterChangeNoteSchema),
 });
 export type CoverLetterRefineResult = z.infer<typeof CoverLetterRefineResultSchema>;
+
+// ─── Job (Phase 1: 공고 워크스페이스) ──────────────────
+
+export const JobStatusSchema = z
+  .enum(["explore", "applying", "interview", "done", "dropped"])
+  .catch("explore");
+export type JobStatus = z.infer<typeof JobStatusSchema>;
+
+export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+  explore: "탐색",
+  applying: "지원중",
+  interview: "면접",
+  done: "완료",
+  dropped: "포기",
+};
+
+export const JobMetaSchema = z.object({
+  status: JobStatusSchema,
+  notes: z.string().default(""),
+  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  updatedAt: z.number().default(0),
+});
+export type JobMeta = z.infer<typeof JobMetaSchema>;
