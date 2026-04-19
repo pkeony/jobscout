@@ -37,19 +37,19 @@ export function AppShell({
   return (
     <div className="flex min-h-screen">
       {/* ─── 사이드바 (lg+) ─── */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r-2 border-border bg-background lg:flex">
-        <div className="border-b border-border p-6">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-sidebar lg:flex">
+        <div className="px-5 pt-6 pb-5">
           <Link href="/" className="block">
-            <h2 className="font-heading text-2xl font-black italic text-secondary">
+            <h2 className="text-lg font-bold tracking-tight text-foreground">
               JobScout
             </h2>
           </Link>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             AI 채용공고 분석기
           </p>
         </div>
 
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="flex-1 space-y-0.5 px-3">
           {NAV_ITEMS.map((item) => {
             const isActive = isNavActive(pathname, item.href);
             return (
@@ -57,10 +57,10 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors duration-75",
+                  "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors duration-100",
                   isActive
-                    ? "bg-secondary text-secondary-foreground font-bold"
-                    : "text-foreground/70 hover:bg-muted hover:text-foreground",
+                    ? "bg-card text-foreground font-medium elevation-sm"
+                    : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
                 )}
               >
                 <span>{item.label}</span>
@@ -69,35 +69,36 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="border-t border-border p-4">
+        <div className="px-5 py-4">
           <Link
             href="/"
-            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors duration-75"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors duration-100"
           >
-            <span>← HOME</span>
+            ← 홈으로
           </Link>
         </div>
       </aside>
 
-      {/* ─── 모바일 상단 바 (lg 미만) ─── */}
-      <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between border-b-2 border-border bg-background px-4 py-2 lg:hidden">
+      {/* ─── 모바일 상단 바 ─── */}
+      <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between bg-card/80 backdrop-blur border-b border-border px-4 py-2.5 lg:hidden">
         <Link href="/">
-          <span className="font-heading text-lg font-black italic text-secondary">
+          <span className="text-base font-bold tracking-tight text-foreground">
             JobScout
           </span>
         </Link>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-foreground"
+          className="p-2 text-foreground rounded-md hover:bg-muted transition-colors"
+          aria-label="메뉴"
         >
           {mobileMenuOpen ? "✕" : "☰"}
         </button>
       </div>
 
-      {/* ─── 모바일 메뉴 드롭다운 ─── */}
+      {/* ─── 모바일 메뉴 ─── */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 top-12 z-20 border-b-2 border-border bg-background p-4 lg:hidden">
-          <nav className="space-y-1">
+        <div className="fixed inset-x-0 top-12 z-20 bg-card border-b border-border p-3 lg:hidden elevation-md">
+          <nav className="space-y-0.5">
             {NAV_ITEMS.map((item) => {
               const isActive = isNavActive(pathname, item.href);
               return (
@@ -106,10 +107,10 @@ export function AppShell({
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "block px-3 py-2 text-sm transition-colors duration-75",
+                    "block px-3 py-2 text-sm rounded-md transition-colors duration-100",
                     isActive
-                      ? "bg-secondary text-secondary-foreground font-bold"
-                      : "text-foreground/70 hover:bg-muted",
+                      ? "bg-muted text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   )}
                 >
                   {item.label}
@@ -121,11 +122,13 @@ export function AppShell({
       )}
 
       {/* ─── 메인 캔버스 ─── */}
-      <main className="flex flex-1 flex-col pt-12 lg:ml-64 lg:pt-0">
-        <MetadataRibbon className="sticky top-0 z-10 w-full">
-          <span>{ribbonLeft}</span>
-          <span>{ribbonRight}</span>
-        </MetadataRibbon>
+      <main className="flex flex-1 flex-col pt-12 lg:ml-60 lg:pt-0">
+        {(ribbonLeft || ribbonRight) && (
+          <MetadataRibbon className="sticky top-0 z-10 w-full">
+            <span>{ribbonLeft}</span>
+            <span>{ribbonRight}</span>
+          </MetadataRibbon>
+        )}
         <div className="flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>

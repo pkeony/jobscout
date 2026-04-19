@@ -11,7 +11,7 @@ export function MetadataRibbon({ children, className }: MetadataRibbonProps) {
     <div
       data-slot="metadata-ribbon"
       className={cn(
-        "bg-accent text-accent-foreground px-4 py-1.5 text-[10px] font-medium uppercase tracking-[0.2em] flex items-center justify-between",
+        "bg-card/80 backdrop-blur border-b border-border text-muted-foreground px-5 py-2 text-xs font-medium flex items-center justify-between",
         className,
       )}
     >
