@@ -7,13 +7,9 @@ import { cn } from "@/lib/utils";
 import { MetadataRibbon } from "@/components/metadata-ribbon";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "대시보드" },
-  { href: "/analyze", label: "채용공고 분석" },
-  { href: "/match", label: "프로필 매칭" },
-  { href: "/cover-letter", label: "자소서" },
-  { href: "/interview", label: "면접 질문" },
-  { href: "/profiles", label: "프로필 관리" },
-  { href: "/history", label: "히스토리" },
+  { href: "/jobs", label: "공고" },
+  { href: "/profiles", label: "프로필" },
+  { href: "/settings", label: "설정" },
 ];
 
 function isNavActive(pathname: string, href: string): boolean {

@@ -19,7 +19,7 @@ import { AnalyzeTab } from "@/components/jobs/AnalyzeTab";
 import { MatchTab } from "@/components/jobs/MatchTab";
 import { CoverLetterTab } from "@/components/jobs/CoverLetterTab";
 import { InterviewTab } from "@/components/jobs/InterviewTab";
-import { findJobById, type Job } from "@/lib/storage/job-index";
+import { findJobById, hashJdText, type Job } from "@/lib/storage/job-index";
 import { loadJobMeta, saveJobMeta } from "@/lib/storage/job-meta";
 import { JOB_STATUS_LABEL, type JobStatus } from "@/types";
 import { cn } from "@/lib/utils";
@@ -95,16 +95,54 @@ function JobWorkspaceInner() {
     return "analyze";
   });
 
-  const reloadJob = useCallback(() => {
+  const resolveJob = useCallback((): Job | null => {
     const found = findJobById(jobId);
+    if (found) return found;
+    if (typeof window === "undefined") return null;
+    const pendingJdText = sessionStorage.getItem("jobscout:jdText");
+    if (!pendingJdText || hashJdText(pendingJdText) !== jobId) return null;
+    const metaRaw = sessionStorage.getItem("jobscout:crawlMeta");
+    let crawl: { title?: string; company?: string; url?: string } = {};
+    if (metaRaw) {
+      try {
+        crawl = JSON.parse(metaRaw) as typeof crawl;
+      } catch {
+        /* ignore */
+      }
+    }
+    const focus =
+      sessionStorage.getItem("jobscout:focusPosition") ?? undefined;
+    const meta = loadJobMeta(jobId);
+    const pending: Job = {
+      id: jobId,
+      jdText: pendingJdText,
+      jobTitle: crawl.title || "제목 없음",
+      companyName: crawl.company || "회사명 미확인",
+      jobUrl: crawl.url || undefined,
+      focusPosition: focus,
+      hasAnalyze: false,
+      hasMatch: false,
+      hasCoverLetter: false,
+      hasInterview: false,
+      progress: 0,
+      lastActivityAt: Date.now(),
+      status: meta.status,
+      notes: meta.notes,
+      deadline: meta.deadline,
+    };
+    return pending;
+  }, [jobId]);
+
+  const reloadJob = useCallback(() => {
+    const found = resolveJob();
     setJob(found);
     if (found) {
       setNotesDraft(found.notes);
     }
-  }, [jobId]);
+  }, [resolveJob]);
 
   useEffect(() => {
-    const found = findJobById(jobId);
+    const found = resolveJob();
     setLoaded(true);
     if (!found) {
       router.replace("/jobs");
@@ -151,7 +189,7 @@ function JobWorkspaceInner() {
     if (!initialTabParam) {
       setActiveTab(firstMissingTab(found));
     }
-  }, [jobId, router, initialTabParam]);
+  }, [jobId, router, initialTabParam, resolveJob]);
 
   const handleStatusChange = useCallback(
     (status: JobStatus) => {

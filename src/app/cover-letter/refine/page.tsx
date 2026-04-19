@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from"react";
+import { Suspense, useEffect, useState } from"react";
 import Link from"next/link";
 import { useRouter, useSearchParams } from"next/navigation";
 import { AppShell } from"@/components/app-shell";
@@ -15,7 +15,7 @@ function parseSource(raw: string | null): V0Source | undefined {
  return undefined;
 }
 
-export default function CoverLetterRefinePage() {
+function CoverLetterRefineInner() {
  const router = useRouter();
  const searchParams = useSearchParams();
  const [jdText, setJdText] = useState<string | null>(null);
@@ -73,5 +73,13 @@ export default function CoverLetterRefinePage() {
  </FadeIn>
  </div>
  </AppShell>
+ );
+}
+
+export default function CoverLetterRefinePage() {
+ return (
+ <Suspense fallback={null}>
+ <CoverLetterRefineInner />
+ </Suspense>
  );
 }
