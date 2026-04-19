@@ -7,9 +7,17 @@ import { hashJdText } from "@/lib/storage/job-index";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from"@/components/ui/tabs";
 import { Textarea } from"@/components/ui/textarea";
 import { Button } from"@/components/ui/button";
-import { Skeleton } from"@/components/ui/skeleton";
 import { FadeIn } from"@/components/motion";
+import { AnalysisProgress } from "@/components/analyze/AnalysisProgress";
+import { PositionPicker } from "@/components/analyze/PositionPicker";
+import { AppShell } from "@/components/app-shell";
 import { Search, Target, FileText, MessageCircle } from"lucide-react";
+
+interface CrawlMeta {
+  title: string;
+  company: string;
+  url: string;
+}
 
 export default function HomePage() {
  const router = useRouter();
@@ -21,9 +29,14 @@ export default function HomePage() {
 "idle" |"loading" |"error"
  >("idle");
  const [crawlError, setCrawlError] = useState<string | null>(null);
+ const [pendingCrawl, setPendingCrawl] = useState<{
+  text: string;
+  positions: string[];
+  meta: CrawlMeta;
+ } | null>(null);
 
  const goToAnalyze = useCallback(
- (text: string, meta?: { title: string; company: string; url: string }) => {
+ (text: string, meta?: CrawlMeta, focusPosition?: string) => {
  // 새 분석 시 이전 캐시 전부 클리어
  sessionStorage.removeItem("jobscout:analyzeResult");
  sessionStorage.removeItem("jobscout:coverLetterResult");
@@ -31,6 +44,13 @@ export default function HomePage() {
  sessionStorage.setItem("jobscout:jdText", text);
  if (meta) {
  sessionStorage.setItem("jobscout:crawlMeta", JSON.stringify(meta));
+ } else {
+ sessionStorage.removeItem("jobscout:crawlMeta");
+ }
+ if (focusPosition) {
+ sessionStorage.setItem("jobscout:focusPosition", focusPosition);
+ } else {
+ sessionStorage.removeItem("jobscout:focusPosition");
  }
  router.push(`/jobs/${hashJdText(text)}?tab=analyze&autostart=1`);
  },
@@ -60,12 +80,18 @@ export default function HomePage() {
  company: string;
  text: string;
  url: string;
+ positions?: string[];
  };
- goToAnalyze(data.text, {
- title: data.title,
- company: data.company,
- url: data.url,
- });
+ setCrawlStatus("idle");
+ const meta: CrawlMeta = { title: data.title, company: data.company, url: data.url };
+ const positions = data.positions ?? [];
+ if (positions.length === 1) {
+ // 단일 포지션 → 바로 분석
+ goToAnalyze(data.text, meta);
+ } else {
+ // 0개(감지 실패) 또는 2개 이상(다중) → 피커 화면으로
+ setPendingCrawl({ text: data.text, positions, meta });
+ }
  } catch (err) {
  setCrawlStatus("error");
  setCrawlError(
@@ -80,6 +106,48 @@ export default function HomePage() {
  if (!jdText.trim() || jdText.trim().length < 50) return;
  goToAnalyze(jdText.trim());
  }, [jdText, goToAnalyze]);
+
+ const handlePositionSelect = useCallback(
+ (position: string | null) => {
+ if (!pendingCrawl) return;
+ goToAnalyze(pendingCrawl.text, pendingCrawl.meta, position ?? undefined);
+ },
+ [pendingCrawl, goToAnalyze],
+ );
+
+ // 크롤링 중: 프로세스 페이지 표시
+ if (crawlStatus ==="loading" && !pendingCrawl) {
+ return (
+ <AppShell ribbonLeft={<>채용공고 수집</>} ribbonRight={<>STATUS: CRAWLING</>}>
+ <div className="max-w-6xl mx-auto">
+ <FadeIn>
+ <AnalysisProgress inputMode="url" deltaChars={0} phase="crawling" />
+ </FadeIn>
+ </div>
+ </AppShell>
+ );
+ }
+
+ // 크롤 완료 후 다중 포지션 피커 화면
+ if (pendingCrawl) {
+ return (
+ <AppShell
+ ribbonLeft={<>포지션 선택</>}
+ ribbonRight={
+ pendingCrawl.positions.length > 0
+ ? <>{pendingCrawl.positions.length}개 포지션 감지</>
+ : <>포지션 자동 감지 실패</>
+ }
+ >
+ <PositionPicker
+ meta={pendingCrawl.meta}
+ positions={pendingCrawl.positions}
+ onSelect={handlePositionSelect}
+ onCancel={() => setPendingCrawl(null)}
+ />
+ </AppShell>
+ );
+ }
 
  return (
  <main className="flex min-h-screen flex-col bg-background">
@@ -294,16 +362,6 @@ export default function HomePage() {
  disabled={crawlStatus ==="loading"}
  />
  </div>
-
- {crawlStatus ==="loading" && (
- <div className="space-y-2 p-4">
- <Skeleton className="h-4 w-3/4" />
- <Skeleton className="h-4 w-1/2" />
- <p className="text-sm text-muted-foreground mt-2">
- 채용공고를 가져오는 중...
- </p>
- </div>
- )}
 
  {crawlStatus ==="error" && crawlError && (
  <div className="border-l-4 border-destructive bg-destructive/5 p-4 text-sm">

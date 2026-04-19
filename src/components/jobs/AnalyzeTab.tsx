@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnalyzeResultView } from "@/components/analyze/AnalyzeResultView";
+import { AnalysisProgress } from "@/components/analyze/AnalysisProgress";
 import { Button } from "@/components/ui/button";
 import { useStreamingResponse } from "@/hooks/use-streaming-response";
 import { addAnalyzeHistoryEntry } from "@/lib/storage/analyze-history";
@@ -124,15 +125,12 @@ export function AnalyzeTab({ job, autoStart, onCompleted }: Props) {
 
   if (status === "streaming") {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4">
-        <div className="flex items-center gap-3">
-          <span className="h-2 w-2 bg-accent animate-pulse rounded-full" />
-          <span className="text-sm text-muted-foreground">
-            AI 가 채용공고를 분석 중입니다... ({fullText.length.toLocaleString()}자
-            수신)
-          </span>
-        </div>
-      </div>
+      <AnalysisProgress
+        inputMode="url"
+        deltaChars={fullText.length}
+        crawlTitle={job.jobTitle}
+        phase="analyzing"
+      />
     );
   }
 
