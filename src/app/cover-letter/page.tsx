@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FadeIn } from "@/components/motion";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { AppShell } from "@/components/app-shell";
+import { RefineFromInterviewSection } from "@/components/cover-letter/RefineFromInterviewSection";
 import { friendlyError } from "@/lib/utils";
 
 function readAnalysisExtras(): Record<string, unknown> {
@@ -355,6 +356,13 @@ export default function CoverLetterPage() {
         {jdText && (
           <FadeIn delay={0.06}>
             <ImproveSection jdText={jdText} />
+          </FadeIn>
+        )}
+
+        {/* ───────── 피처 D: 면접 질문으로 자소서 보강 ───────── */}
+        {jdText && (
+          <FadeIn delay={0.08}>
+            <RefineFromInterviewSection jdText={jdText} />
           </FadeIn>
         )}
 

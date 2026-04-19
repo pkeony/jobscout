@@ -95,3 +95,55 @@ export const INTERVIEW_RESPONSE_SCHEMA: unknown = {
   },
   required: ["questions", "tips"],
 };
+
+const COVER_LETTER_WEAKNESS_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    id: { type: "STRING" },
+    summary: { type: "STRING" },
+    evidenceQuestion: { type: "STRING" },
+    evidenceIntent: { type: "STRING" },
+    suggestion: { type: "STRING" },
+    relatedHeading: { type: "STRING" },
+  },
+  required: ["id", "summary", "evidenceQuestion", "evidenceIntent", "suggestion"],
+};
+
+export const COVER_LETTER_TRACE_RESPONSE_SCHEMA: unknown = {
+  type: "OBJECT",
+  properties: {
+    weaknesses: {
+      type: "ARRAY",
+      items: COVER_LETTER_WEAKNESS_SCHEMA,
+      minItems: "3",
+      maxItems: "8",
+    },
+    overallDiagnosis: { type: "STRING" },
+  },
+  required: ["weaknesses", "overallDiagnosis"],
+};
+
+export const COVER_LETTER_REFINE_RESPONSE_SCHEMA: unknown = {
+  type: "OBJECT",
+  properties: {
+    revised: COVER_LETTER_RESULT_SCHEMA_INNER,
+    appliedWeaknessIds: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+    },
+    changeNotes: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          heading: { type: "STRING" },
+          before: { type: "STRING" },
+          after: { type: "STRING" },
+          weaknessId: { type: "STRING" },
+        },
+        required: ["heading", "before", "after", "weaknessId"],
+      },
+    },
+  },
+  required: ["revised", "appliedWeaknessIds", "changeNotes"],
+};

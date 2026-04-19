@@ -271,3 +271,51 @@ export const InterviewRequestSchema = z.object({
   focusPosition: z.string().optional(),
 });
 export type InterviewRequest = z.infer<typeof InterviewRequestSchema>;
+
+// ─── CoverLetterTrace / Refine (피처 D: 자소서↔면접 역추적) ──
+
+export const CoverLetterWeaknessSchema = z.object({
+  id: z.string().min(1),
+  summary: z.string().min(1),
+  evidenceQuestion: z.string().min(1),
+  evidenceIntent: z.string().min(1),
+  suggestion: z.string().min(1),
+  relatedHeading: z.string().optional(),
+});
+export type CoverLetterWeakness = z.infer<typeof CoverLetterWeaknessSchema>;
+
+export const CoverLetterTraceResultSchema = z.object({
+  weaknesses: z.array(CoverLetterWeaknessSchema).min(3).max(8),
+  overallDiagnosis: z.string().min(1),
+});
+export type CoverLetterTraceResult = z.infer<typeof CoverLetterTraceResultSchema>;
+
+export const CoverLetterTraceRequestSchema = z.object({
+  coverLetter: CoverLetterResultSchema,
+  interviewResult: InterviewResultSchema,
+  jdText: z.string().min(50, "채용공고 텍스트는 최소 50자 이상이어야 합니다"),
+  profile: UserProfileSchema.optional(),
+  analysisResult: AnalysisResultSchema.optional(),
+  focusPosition: z.string().optional(),
+});
+export type CoverLetterTraceRequest = z.infer<typeof CoverLetterTraceRequestSchema>;
+
+export const CoverLetterRefineRequestSchema = CoverLetterTraceRequestSchema.extend({
+  weaknesses: z.array(CoverLetterWeaknessSchema).min(1),
+});
+export type CoverLetterRefineRequest = z.infer<typeof CoverLetterRefineRequestSchema>;
+
+export const CoverLetterChangeNoteSchema = z.object({
+  heading: z.string().min(1),
+  before: z.string().min(1),
+  after: z.string().min(1),
+  weaknessId: z.string().min(1),
+});
+export type CoverLetterChangeNote = z.infer<typeof CoverLetterChangeNoteSchema>;
+
+export const CoverLetterRefineResultSchema = z.object({
+  revised: CoverLetterResultSchema,
+  appliedWeaknessIds: z.array(z.string()),
+  changeNotes: z.array(CoverLetterChangeNoteSchema),
+});
+export type CoverLetterRefineResult = z.infer<typeof CoverLetterRefineResultSchema>;

@@ -12,6 +12,11 @@ import {
   type RunCoverLetterEvalOpts,
 } from "./runners/cover-letter";
 import {
+  printCoverLetterTraceReport,
+  runCoverLetterTraceEval,
+  type RunCoverLetterTraceEvalOpts,
+} from "./runners/cover-letter-trace";
+import {
   printInterviewReport,
   runInterviewEval,
   type RunInterviewEvalOpts,
@@ -35,6 +40,7 @@ export async function runEval(opts: RunEvalOpts): Promise<EvalReport> {
     | RunMatchEvalOpts
     | RunAnalyzeEvalOpts
     | RunCoverLetterEvalOpts
+    | RunCoverLetterTraceEvalOpts
     | RunInterviewEvalOpts = {
     goldsetPath: opts.goldsetPath,
     model: opts.model,
@@ -49,6 +55,9 @@ export async function runEval(opts: RunEvalOpts): Promise<EvalReport> {
       break;
     case "cover-letter":
       report = await runCoverLetterEval(subOpts);
+      break;
+    case "cover-letter-trace":
+      report = await runCoverLetterTraceEval(subOpts);
       break;
     case "interview":
       report = await runInterviewEval(subOpts);
@@ -84,6 +93,9 @@ export function printReport(report: EvalReport): void {
       return;
     case "cover-letter":
       printCoverLetterReport(report);
+      return;
+    case "cover-letter-trace":
+      printCoverLetterTraceReport(report);
       return;
     case "interview":
       printInterviewReport(report);

@@ -52,6 +52,7 @@ const IMPLEMENTED_TARGETS: EvalTarget[] = [
   "analyze",
   "cover-letter",
   "interview",
+  "cover-letter-trace",
 ];
 
 const GOLDSET_PATHS: Record<EvalTarget, string> = {
@@ -59,6 +60,7 @@ const GOLDSET_PATHS: Record<EvalTarget, string> = {
   analyze: "eval/goldset/analyses.jsonl",
   "cover-letter": "eval/goldset/cover-letters.jsonl",
   interview: "eval/goldset/interviews.jsonl",
+  "cover-letter-trace": "eval/goldset/cover-letter-traces.jsonl",
 };
 
 async function main(): Promise<void> {

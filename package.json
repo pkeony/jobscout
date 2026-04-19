@@ -13,7 +13,8 @@
     "eval:match": "tsx eval/cli.ts --target=match",
     "eval:analyze": "tsx eval/cli.ts --target=analyze",
     "eval:cover-letter": "tsx eval/cli.ts --target=cover-letter",
-    "eval:interview": "tsx eval/cli.ts --target=interview"
+    "eval:interview": "tsx eval/cli.ts --target=interview",
+    "eval:cover-letter-trace": "tsx eval/cli.ts --target=cover-letter-trace"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
@@ -22,6 +23,7 @@
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "diff": "^9.0.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.8.0",
     "mammoth": "^1.12.0",
@@ -38,6 +40,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/diff": "^8.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

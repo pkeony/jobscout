@@ -1,7 +1,9 @@
 import { z } from "zod";
 import {
   AnalysisResultSchema,
+  CoverLetterRefineResultSchema,
   CoverLetterResultSchema,
+  CoverLetterTraceResultSchema,
   InterviewResultSchema,
   MatchResultSchema,
   UserProfileSchema,
@@ -106,6 +108,31 @@ export const InterviewGoldsetSchema = GoldsetBaseSchema.extend({
 });
 export type InterviewGoldsetCase = z.infer<typeof InterviewGoldsetSchema>;
 
+// ─── cover-letter-trace target (피처 D) ──────────────
+
+export const CoverLetterTraceExpectedSchema = z.object({
+  // v0/v1 채점은 cover-letter expected 필드 그대로 재사용
+  requiredHeadings: z
+    .array(z.string())
+    .default([...COVER_LETTER_REQUIRED_HEADINGS]),
+  minParagraphsPerSection: z.number().default(2),
+  maxParagraphsPerSection: z.number().default(3),
+  expectedCompanyName: z.string().optional(),
+  judgeRubric: z.string(),
+  // trace 자체 검증
+  minWeaknessCount: z.number().default(3),
+  maxWeaknessCount: z.number().default(8),
+});
+export type CoverLetterTraceExpected = z.infer<typeof CoverLetterTraceExpectedSchema>;
+
+export const CoverLetterTraceGoldsetSchema = GoldsetBaseSchema.extend({
+  target: z.literal("cover-letter-trace"),
+  coverLetterV0: CoverLetterResultSchema,
+  interviewResult: InterviewResultSchema,
+  expected: CoverLetterTraceExpectedSchema,
+});
+export type CoverLetterTraceGoldsetCase = z.infer<typeof CoverLetterTraceGoldsetSchema>;
+
 // ─── discriminated union ──────────────────────────────
 
 export const GoldsetCaseSchema = z.discriminatedUnion("target", [
@@ -113,6 +140,7 @@ export const GoldsetCaseSchema = z.discriminatedUnion("target", [
   AnalyzeGoldsetSchema,
   CoverLetterGoldsetSchema,
   InterviewGoldsetSchema,
+  CoverLetterTraceGoldsetSchema,
 ]);
 export type GoldsetCase = z.infer<typeof GoldsetCaseSchema>;
 
@@ -174,6 +202,24 @@ export const InterviewRuleScoreSchema = z.object({
   duplicateQuestionPairs: z.number(),
 });
 export type InterviewRuleScore = z.infer<typeof InterviewRuleScoreSchema>;
+
+export const CoverLetterTraceRuleScoreSchema = z.object({
+  schemaValidity: z.boolean(),
+  // trace 자체
+  weaknessCount: z.number(),
+  weaknessCountInRange: z.boolean(),
+  evidenceQuestionMatchRate: z.number(),
+  evidenceLinkRate: z.number(),
+  relatedHeadingValidRate: z.number(),
+  // refine 자체
+  refineSchemaValidity: z.boolean(),
+  appliedWeaknessRate: z.number(),
+  changeNotesPerWeakness: z.number(),
+  // v0 vs v1 cover-letter rule (delta 는 aggregate 에서 계산)
+  v0Rules: CoverLetterRuleScoreSchema,
+  v1Rules: CoverLetterRuleScoreSchema,
+});
+export type CoverLetterTraceRuleScore = z.infer<typeof CoverLetterTraceRuleScoreSchema>;
 
 // ─── Judge score (공통) ───────────────────────────────
 
@@ -249,11 +295,30 @@ export const InterviewCaseReportSchema = z.object({
 });
 export type InterviewCaseReport = z.infer<typeof InterviewCaseReportSchema>;
 
+export const CoverLetterTraceCaseReportSchema = z.object({
+  caseId: z.string(),
+  label: z.string(),
+  model: z.string(),
+  target: z.literal("cover-letter-trace"),
+  latencyMs: z.number(),
+  tokensIn: z.number(),
+  tokensOut: z.number(),
+  traceResult: CoverLetterTraceResultSchema.nullable(),
+  refineResult: CoverLetterRefineResultSchema.nullable(),
+  rules: CoverLetterTraceRuleScoreSchema,
+  v0Judge: JudgeScoreSchema.nullable(),
+  v1Judge: JudgeScoreSchema.nullable(),
+  judgeDelta: z.number().nullable(),
+  error: z.string().optional(),
+});
+export type CoverLetterTraceCaseReport = z.infer<typeof CoverLetterTraceCaseReportSchema>;
+
 export type CaseReport =
   | MatchCaseReport
   | AnalyzeCaseReport
   | CoverLetterCaseReport
-  | InterviewCaseReport;
+  | InterviewCaseReport
+  | CoverLetterTraceCaseReport;
 
 // ─── Aggregate (target 별) ────────────────────────────
 
@@ -324,6 +389,34 @@ export const InterviewAggregateSchema = z.object({
 });
 export type InterviewAggregate = z.infer<typeof InterviewAggregateSchema>;
 
+export const CoverLetterTraceAggregateSchema = z.object({
+  // trace 자체
+  schemaValidityRate: z.number(),
+  weaknessCountInRangeRate: z.number(),
+  avgWeaknessCount: z.number(),
+  avgEvidenceQuestionMatchRate: z.number(),
+  avgEvidenceLinkRate: z.number(),
+  avgRelatedHeadingValidRate: z.number(),
+  // refine 자체
+  refineSchemaValidityRate: z.number(),
+  avgAppliedWeaknessRate: z.number(),
+  avgChangeNotesPerWeakness: z.number(),
+  // v0/v1 delta (primary KPI)
+  judgeAvgV0: z.number(),
+  judgeAvgV1: z.number(),
+  judgeDelta: z.number(),
+  improvedRate: z.number(),
+  headingsCoverageDelta: z.number(),
+  starLabelCountDelta: z.number(),
+  starLabelFullyCoveredDelta: z.number(),
+  // perf
+  p50LatencyMs: z.number(),
+  p95LatencyMs: z.number(),
+  avgTokensIn: z.number(),
+  avgTokensOut: z.number(),
+});
+export type CoverLetterTraceAggregate = z.infer<typeof CoverLetterTraceAggregateSchema>;
+
 // ─── Eval report (target 별) ──────────────────────────
 
 export const MatchEvalReportSchema = z.object({
@@ -374,10 +467,24 @@ export const InterviewEvalReportSchema = z.object({
 });
 export type InterviewEvalReport = z.infer<typeof InterviewEvalReportSchema>;
 
+export const CoverLetterTraceEvalReportSchema = z.object({
+  runId: z.string(),
+  startedAt: z.string(),
+  target: z.literal("cover-letter-trace"),
+  model: z.string(),
+  promptVersion: z.string().optional(),
+  refinePromptVersion: z.string().optional(),
+  caseCount: z.number(),
+  cases: z.array(CoverLetterTraceCaseReportSchema),
+  aggregate: CoverLetterTraceAggregateSchema,
+});
+export type CoverLetterTraceEvalReport = z.infer<typeof CoverLetterTraceEvalReportSchema>;
+
 export const EvalReportSchema = z.discriminatedUnion("target", [
   MatchEvalReportSchema,
   AnalyzeEvalReportSchema,
   CoverLetterEvalReportSchema,
   InterviewEvalReportSchema,
+  CoverLetterTraceEvalReportSchema,
 ]);
 export type EvalReport = z.infer<typeof EvalReportSchema>;
