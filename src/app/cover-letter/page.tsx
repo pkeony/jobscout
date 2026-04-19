@@ -419,6 +419,13 @@ function ImproveSection({ jdText }: { jdText: string }) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("jdText", jdText);
+      const extras = readAnalysisExtras();
+      if (extras.analysisResult) {
+        formData.append("analysisResult", JSON.stringify(extras.analysisResult));
+      }
+      if (typeof extras.focusPosition === "string" && extras.focusPosition) {
+        formData.append("focusPosition", extras.focusPosition);
+      }
       startImprove(formData);
     },
     [jdText, startImprove],

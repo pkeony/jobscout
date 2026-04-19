@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { type ImproveCoverLetterResult } from "@/types";
+import {
+  AnalysisResultSchema,
+  type AnalysisResult,
+  type ImproveCoverLetterResult,
+} from "@/types";
 import { streamToJson, makeUsage, type StreamEvent } from "@/lib/ai";
 import { IMPROVE_COVER_LETTER_RESPONSE_SCHEMA } from "@/lib/ai/schemas";
 import { createSSEStream, sseResponse } from "@/lib/sse";
@@ -24,6 +28,8 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
   const jdTextRaw = formData.get("jdText") as string | null;
+  const analysisRaw = formData.get("analysisResult");
+  const focusRaw = formData.get("focusPosition");
 
   if (!file || !jdTextRaw) {
     return NextResponse.json(
@@ -31,6 +37,17 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+
+  let analysisResult: AnalysisResult | undefined;
+  if (typeof analysisRaw === "string" && analysisRaw.length > 0) {
+    try {
+      const parsed = AnalysisResultSchema.safeParse(JSON.parse(analysisRaw));
+      if (parsed.success) analysisResult = parsed.data;
+    } catch {
+      // stale 캐시 / malformed JSON 은 무시하고 JD 원문만으로 진행
+    }
+  }
+  const focusPosition = typeof focusRaw === "string" && focusRaw.length > 0 ? focusRaw : undefined;
 
   const validation = validateFile(file);
   if (!validation.ok) {
@@ -64,11 +81,14 @@ export async function POST(req: Request) {
   const startMs = Date.now();
 
   console.log(
-    `[improve-cover-letter ${reqId}] start fileSize=${file.size} clLen=${coverLetterText.length} jdLen=${jdText.length}`,
+    `[improve-cover-letter ${reqId}] start fileSize=${file.size} clLen=${coverLetterText.length} jdLen=${jdText.length} structuredJd=${analysisResult ? "Y" : "N"} focus=${focusPosition ? "Y" : "N"}`,
   );
 
   async function* run(): AsyncIterable<StreamEvent> {
-    const messages = buildImproveCoverLetterMessages(coverLetterText, jdText);
+    const messages = buildImproveCoverLetterMessages(coverLetterText, jdText, {
+      analysisResult,
+      focusPosition,
+    });
 
     const result = await streamToJson<ImproveCoverLetterResult>(
       apiKey!,
