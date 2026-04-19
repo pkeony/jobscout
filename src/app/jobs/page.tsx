@@ -179,7 +179,7 @@ export default function JobsPage() {
               </p>
             </div>
             <Button
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/#input-section")}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               + 새 공고
@@ -236,10 +236,10 @@ export default function JobsPage() {
                 홈에서 URL 을 붙여넣어 첫 공고를 만들어 보세요.
               </p>
               <Button
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/#input-section")}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
-                홈으로 이동 →
+                공고 입력하러 가기 →
               </Button>
             </div>
           </FadeIn>
