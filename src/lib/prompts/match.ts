@@ -8,7 +8,7 @@ import {
   serializeProfile,
 } from "./_shared";
 
-export const PROMPT_VERSION = "match@v1.1.0-2026-04-19";
+export const PROMPT_VERSION = "match@v1.2.0-2026-04-19";
 
 export const MATCH_SYSTEM_PROMPT = `당신은 채용공고-지원자 매칭 전문가입니다.
 채용공고(JD) 텍스트와 지원자 프로필을 비교 분석하여 매칭 결과를 JSON으로 반환합니다.
@@ -29,11 +29,21 @@ skillMatches의 "name"은 다음 중 하나여야 합니다.
 JD에 없는 스킬을 추정으로 추가하지 마세요. 예를 들어 JD에 "ChatGPT", "Claude"라는 단어가 없는데 "AI 직무니까 당연히 필요할 것" 같은 일반화로 항목을 만들어내는 것은 금지입니다. JD가 모호하면 summary에 한계를 명시하되, 프로필에서 JD의 실제 요구와 연관성이 확실한 역량은 strengths와 skillMatches에 정상적으로 반영하세요 (JD 한계가 강점 평가를 깎는 이유가 되면 안 됨).
 
 ## focusPosition 처리
-"사용자가 집중 분석을 요청한 포지션"이 명시되면 그 포지션 관점에서 매칭하세요. JD 분석 결과가 비어 있거나 skills가 적더라도:
-- focusPosition 텍스트에서 요구 역량/업무를 직접 추출하고
-- 사용자 프로필의 관련 경험·스킬과 비교해 skillMatches를 **최소 3개 이상** 생성하세요.
+**게이트:** 이 섹션의 절차는 입력 메시지에 "## 사용자가 집중 분석을 요청한 포지션" 이라는 섹션이 실제로 포함되어 있을 때에만 적용합니다. 그 섹션이 없으면 이 'focusPosition 처리' 섹션 전체를 무시하고 '## 점수 산정' 의 기본 공식을 그대로 사용하세요. roleTitle 이나 JD 원문에서 추정한 직무명은 focusPosition 이 아닙니다.
 
-focusPosition이 있을 때 skillMatches를 []로 두는 것은 금지입니다.
+게이트가 열린 경우(= focusPosition 섹션이 입력에 존재)에만 아래 절차를 따르세요.
+
+A. JD 분석 결과의 "자격 요건 (필수)" 이 "(명시 없음)" 인 경우:
+  1. focusPosition 텍스트 + JD 원문 미리보기 + "주요 업무" 섹션에서 해당 포지션의 **핵심 필수 역량 3~5개** 를 선정하세요 (이하 "도출 필수 스킬").
+  2. 이 도출 필수 스킬이 곧 requiredSkills 계산의 "JD 필수 스킬 수" 입니다.
+     - requiredSkills.max = 도출 필수 스킬 수 × 15 (최소 3 × 15 = 45)
+     - requiredSkills.earned 는 해당 스킬들의 match/partial 수로 '## 점수 산정' 공식대로 계산
+  3. 도출 필수 스킬은 반드시 skillMatches 에 포함 (순서 무관, 추가 스킬 허용). skillMatches 는 최소 3개 이상.
+  4. summary 첫 문장에 "focusPosition 기반 도출 역량: A, B, C" 를 명시해 사용자가 근거를 확인할 수 있게 하세요.
+  5. focusPosition 섹션이 있고 requiredSkills.max == 0 인 출력은 금지입니다 (불변식 위반).
+
+B. JD 분석 결과에 requirements 가 이미 있는 경우:
+  - '## 점수 산정' 의 기본 공식을 그대로 사용. focusPosition 은 skillMatches 범위 제한(다른 포지션 요건 제외) 용도로만 쓰고, 별도 도출 절차 없음.
 
 ## JSON 스키마
 {
@@ -157,6 +167,13 @@ export function extractMatchJson(raw: string): MatchResult {
 function normalizeBreakdown(result: MatchResult): MatchResult {
   const b = result.scoreBreakdown;
   if (!b) return result;
+
+  // focusPosition 브랜치에서 LLM 이 도출 필수 스킬 선언을 누락하고 max=0 으로
+  // 내보낸 경우의 바닥값. skillMatches 를 이미 3개 이상 냈다면 "필수 스킬 수 ≥ 3"
+  // 은 프롬프트 계약상 참이므로 max 만 floor. earned 는 LLM 값 존중.
+  if (b.requiredSkills.max === 0 && result.skillMatches.length >= 3) {
+    b.requiredSkills.max = 45;
+  }
 
   b.requiredSkills.earned = clamp(b.requiredSkills.earned, 0, b.requiredSkills.max);
   b.preferredSkills.earned = clamp(b.preferredSkills.earned, 0, b.preferredSkills.max);
