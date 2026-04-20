@@ -189,7 +189,7 @@ export default function HomePage() {
  </nav>
  <Button
  className="px-6 py-2 text-sm"
- onClick={() => router.push("/login")}
+ onClick={() => router.push("/auth/login")}
  >
  시작하기
  </Button>
@@ -224,7 +224,7 @@ export default function HomePage() {
  {/* CTA Button with offset border effect */}
  <div className="pt-8">
  <button
- onClick={() => router.push("/login")}
+ onClick={() => router.push("/auth/login")}
  className="relative group bg-primary text-primary-foreground px-10 py-4 text-lg font-medium hover:bg-primary/90 transition-colors"
  >
  입장하기
@@ -239,7 +239,7 @@ export default function HomePage() {
  <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
  {/* 스킬 분석 — 7 col, light */}
  <Link
- href="/login"
+ href="/auth/login"
  className="md:col-span-7 bg-card p-10 border-2 border-border hover:border-secondary/50 transition-colors group"
  >
  <div className="flex justify-between items-start mb-12">
@@ -260,7 +260,7 @@ export default function HomePage() {
 
  {/* 프로필 매칭 — 5 col, dark */}
  <Link
- href="/login"
+ href="/auth/login"
  className="md:col-span-5 bg-primary text-primary-foreground p-10 flex flex-col justify-between group"
  >
  <div>
@@ -278,7 +278,7 @@ export default function HomePage() {
 
  {/* 자소서 초안 — 5 col, surface */}
  <Link
- href="/login"
+ href="/auth/login"
  className="md:col-span-5 bg-muted p-10 border-2 border-primary/5 group"
  >
  <FileText className="w-9 h-9 text-primary mb-8" />
@@ -293,7 +293,7 @@ export default function HomePage() {
 
  {/* 면접 예상질문 — 7 col, white */}
  <Link
- href="/login"
+ href="/auth/login"
  className="md:col-span-7 bg-card p-10 border-2 border-border relative overflow-hidden group"
  >
  <div className="absolute right-0 top-0 w-24 h-24 bg-accent/5 -rotate-45 translate-x-12 -translate-y-12" />
@@ -442,7 +442,7 @@ export default function HomePage() {
  </p>
  <div className="flex flex-col items-center gap-6">
  <button
- onClick={() => router.push("/login")}
+ onClick={() => router.push("/auth/login")}
  className="bg-primary text-primary-foreground px-12 py-5 text-lg font-medium hover:scale-[1.02] transition-transform flex items-center gap-3"
  >
  지금 시작하기

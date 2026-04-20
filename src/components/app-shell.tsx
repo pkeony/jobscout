@@ -11,6 +11,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { MetadataRibbon } from "@/components/metadata-ribbon";
+import { UserMenu } from "@/components/user-menu";
 import { buildJobIndex, type Job } from "@/lib/storage/job-index";
 import { onJobsChanged } from "@/lib/storage/events";
 import {
@@ -112,13 +113,8 @@ export function AppShell({
           <SecondaryNav pathname={pathname} />
         </nav>
 
-        <div className="px-6 py-5">
-          <Link
-            href="/home"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors duration-100"
-          >
-            ← 홈으로
-          </Link>
+        <div className="border-t border-border/50 px-3 py-3">
+          <UserMenu />
         </div>
       </aside>
 
@@ -169,6 +165,9 @@ export function AppShell({
               onNavigate={() => setMobileMenuOpen(false)}
             />
           </nav>
+          <div className="mt-3 border-t border-border/50 pt-3">
+            <UserMenu onNavigate={() => setMobileMenuOpen(false)} />
+          </div>
         </div>
       )}
 
