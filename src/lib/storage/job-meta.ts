@@ -1,6 +1,11 @@
 import { JobMetaSchema, type JobMeta, type JobStatus } from "@/types";
 import { z } from "zod";
 import { emitJobsChanged } from "./events";
+import {
+  pushJobMetaUpsert,
+  pushJobMetaDelete,
+  pushJobMetaClear,
+} from "@/lib/sync/push";
 
 const META_KEY = "jobscout:jobMeta";
 
@@ -46,6 +51,7 @@ export function saveJobMeta(
   };
   all[jobId] = next;
   saveAllJobMeta(all);
+  pushJobMetaUpsert(jobId, next);
   return next;
 }
 
@@ -53,12 +59,14 @@ export function deleteJobMeta(jobId: string): void {
   const all = loadAllJobMeta();
   delete all[jobId];
   saveAllJobMeta(all);
+  pushJobMetaDelete(jobId);
 }
 
 export function clearAllJobMeta(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(META_KEY);
   emitJobsChanged();
+  pushJobMetaClear();
 }
 
 export type { JobMeta, JobStatus };

@@ -1,6 +1,11 @@
 import { AnalyzeHistoryEntrySchema, type AnalyzeHistoryEntry } from "@/types";
 import { z } from "zod";
 import { emitJobsChanged } from "./events";
+import {
+  pushAnalyzeEntry,
+  pushAnalyzeDelete,
+  pushAnalyzeClear,
+} from "@/lib/sync/push";
 
 const HISTORY_KEY = "jobscout:analyzeHistory";
 const MAX_ENTRIES = 20;
@@ -55,6 +60,7 @@ export function addAnalyzeHistoryEntry(
     };
     const next = [updated, ...existing.filter((_, i) => i !== dupIdx)].slice(0, MAX_ENTRIES);
     saveHistory(next);
+    pushAnalyzeEntry(updated);
     return updated;
   }
 
@@ -65,14 +71,17 @@ export function addAnalyzeHistoryEntry(
   };
   const next = [full, ...existing].slice(0, MAX_ENTRIES);
   saveHistory(next);
+  pushAnalyzeEntry(full);
   return full;
 }
 
 export function deleteAnalyzeHistoryEntry(id: string): void {
   saveHistory(loadAnalyzeHistory().filter((e) => e.id !== id));
+  pushAnalyzeDelete(id);
 }
 
 export function clearAnalyzeHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
   emitJobsChanged();
+  pushAnalyzeClear();
 }

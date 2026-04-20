@@ -1,6 +1,11 @@
 import { MatchHistoryEntrySchema, type MatchHistoryEntry } from "@/types";
 import { z } from "zod";
 import { emitJobsChanged } from "./events";
+import {
+  pushMatchEntry,
+  pushMatchDelete,
+  pushMatchClear,
+} from "@/lib/sync/push";
 
 const HISTORY_KEY = "jobscout:matchHistory";
 const MAX_ENTRIES = 20;
@@ -40,16 +45,19 @@ export function addHistoryEntry(
   };
   const next = [full, ...loadHistory()].slice(0, MAX_ENTRIES);
   saveHistory(next);
+  pushMatchEntry(full);
   return full;
 }
 
 export function deleteHistoryEntry(id: string): void {
   saveHistory(loadHistory().filter((e) => e.id !== id));
+  pushMatchDelete(id);
 }
 
 export function clearHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
   emitJobsChanged();
+  pushMatchClear();
 }
 
 export function getHistoryEntry(id: string): MatchHistoryEntry | null {

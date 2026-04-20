@@ -1,5 +1,10 @@
 import { ProfileSlotSchema, UserProfileSchema, type ProfileSlot, type UserProfile } from "@/types";
 import { z } from "zod";
+import {
+  pushProfileUpsert,
+  pushProfileDelete,
+  pushActiveProfileId,
+} from "@/lib/sync/push";
 
 const PROFILES_KEY = "jobscout:profiles";
 const ACTIVE_KEY = "jobscout:activeProfileId";
@@ -42,6 +47,7 @@ export function setActiveProfileId(id: string | null): void {
   } else {
     localStorage.setItem(ACTIVE_KEY, id);
   }
+  pushActiveProfileId(id);
 }
 
 export function getActiveProfile(): ProfileSlot | null {
@@ -62,6 +68,7 @@ export function addProfile(label: string, profile: UserProfile): ProfileSlot {
   const profiles = loadProfiles();
   profiles.push(slot);
   saveProfiles(profiles);
+  pushProfileUpsert(slot);
   // 첫 프로필이면 자동 활성화
   if (profiles.length === 1) setActiveProfileId(slot.id);
   return slot;
@@ -83,12 +90,14 @@ export function updateProfile(
   };
   profiles[idx] = updated;
   saveProfiles(profiles);
+  pushProfileUpsert(updated);
   return updated;
 }
 
 export function deleteProfile(id: string): void {
   const profiles = loadProfiles().filter((p) => p.id !== id);
   saveProfiles(profiles);
+  pushProfileDelete(id);
   if (getActiveProfileId() === id) {
     setActiveProfileId(profiles[0]?.id ?? null);
   }

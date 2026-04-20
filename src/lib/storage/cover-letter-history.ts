@@ -4,6 +4,11 @@ import {
 } from "@/types";
 import { z } from "zod";
 import { emitJobsChanged } from "./events";
+import {
+  pushCoverLetterEntry,
+  pushCoverLetterDelete,
+  pushCoverLetterClear,
+} from "@/lib/sync/push";
 
 const HISTORY_KEY = "jobscout:coverLetterHistory";
 const MAX_ENTRIES = 20;
@@ -43,14 +48,17 @@ export function addCoverLetterHistoryEntry(
   };
   const next = [full, ...loadCoverLetterHistory()].slice(0, MAX_ENTRIES);
   saveHistory(next);
+  pushCoverLetterEntry(full);
   return full;
 }
 
 export function deleteCoverLetterHistoryEntry(id: string): void {
   saveHistory(loadCoverLetterHistory().filter((e) => e.id !== id));
+  pushCoverLetterDelete(id);
 }
 
 export function clearCoverLetterHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
   emitJobsChanged();
+  pushCoverLetterClear();
 }

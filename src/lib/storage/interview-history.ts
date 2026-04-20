@@ -4,6 +4,11 @@ import {
 } from "@/types";
 import { z } from "zod";
 import { emitJobsChanged } from "./events";
+import {
+  pushInterviewEntry,
+  pushInterviewDelete,
+  pushInterviewClear,
+} from "@/lib/sync/push";
 
 const HISTORY_KEY = "jobscout:interviewHistory";
 const MAX_ENTRIES = 20;
@@ -43,14 +48,17 @@ export function addInterviewHistoryEntry(
   };
   const next = [full, ...loadInterviewHistory()].slice(0, MAX_ENTRIES);
   saveHistory(next);
+  pushInterviewEntry(full);
   return full;
 }
 
 export function deleteInterviewHistoryEntry(id: string): void {
   saveHistory(loadInterviewHistory().filter((e) => e.id !== id));
+  pushInterviewDelete(id);
 }
 
 export function clearInterviewHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
   emitJobsChanged();
+  pushInterviewClear();
 }
