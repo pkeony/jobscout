@@ -160,7 +160,7 @@ export default function JobsPage() {
 
   return (
     <AppShell
-      ribbonLeft={<>공고</>}
+      ribbonLeft={<>JOB 보드</>}
       ribbonRight={
         <>
           {loaded ? `${jobs.length}개 공고` : "로딩"}
@@ -172,7 +172,7 @@ export default function JobsPage() {
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-1">
-                공고
+                JOB 보드
               </h1>
               <p className="text-sm text-muted-foreground">
                 분석·매칭·자소서·면접을 공고 단위로 통합 관리합니다.

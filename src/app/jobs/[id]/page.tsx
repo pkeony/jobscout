@@ -23,17 +23,33 @@ import { findJobById, getJobKey, type Job } from "@/lib/storage/job-index";
 import { loadJobMeta, saveJobMeta } from "@/lib/storage/job-meta";
 import { JOB_STATUS_LABEL, type JobStatus } from "@/types";
 import { cn } from "@/lib/utils";
+import {
+  JOB_TAB_VALUES,
+  JOB_TAB_LABELS,
+  isJobTabValue,
+  type JobTabValue,
+} from "@/lib/jobs/tabs";
 
-const TAB_VALUES = ["analyze", "match", "cover-letter", "interview", "notes"] as const;
-type TabValue = (typeof TAB_VALUES)[number];
+type TabValue = JobTabValue;
+const TAB_VALUES = JOB_TAB_VALUES;
+const TAB_LABELS = JOB_TAB_LABELS;
 
-const TAB_LABELS: Record<TabValue, string> = {
-  analyze: "분석",
-  match: "매칭",
-  "cover-letter": "자소서",
-  interview: "면접",
-  notes: "메모",
+const STATUS_STYLE: Record<JobStatus, string> = {
+  explore: "bg-muted text-foreground",
+  applying: "bg-accent text-accent-foreground",
+  interview: "bg-foreground text-background",
+  done: "bg-accent/20 text-accent-foreground",
+  dropped: "bg-muted text-muted-foreground",
 };
+
+function daysUntil(deadline: string): number | null {
+  const [y, m, d] = deadline.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const target = new Date(y, m - 1, d).getTime();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((target - today.getTime()) / 86400000);
+}
 
 function hasResultForTab(job: Job, tab: TabValue): boolean {
   switch (tab) {
@@ -194,6 +210,24 @@ function JobWorkspaceInner() {
     }
   }, [jobId, router, initialTabParam, resolveJob]);
 
+  // URL `?tab=` 변화를 내부 state 로 반영 (sidebar 에서 탭 링크 클릭 시)
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && isJobTabValue(t)) {
+      setActiveTab(t);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = useCallback(
+    (next: TabValue) => {
+      setActiveTab(next);
+      const qs = new URLSearchParams(searchParams.toString());
+      qs.set("tab", next);
+      router.replace(`/jobs/${jobId}?${qs.toString()}`, { scroll: false });
+    },
+    [jobId, router, searchParams],
+  );
+
   const handleStatusChange = useCallback(
     (status: JobStatus) => {
       if (!job) return;
@@ -225,7 +259,7 @@ function JobWorkspaceInner() {
 
   if (!loaded) {
     return (
-      <AppShell ribbonLeft={<>공고</>} ribbonRight={<>로딩</>}>
+      <AppShell ribbonLeft={<>JOB 보드</>} ribbonRight={<>로딩</>}>
         <div className="max-w-5xl mx-auto py-12 text-center text-sm text-muted-foreground">
           공고 불러오는 중...
         </div>
@@ -235,7 +269,7 @@ function JobWorkspaceInner() {
 
   if (!job) {
     return (
-      <AppShell ribbonLeft={<>공고</>} ribbonRight={<>없음</>}>
+      <AppShell ribbonLeft={<>JOB 보드</>} ribbonRight={<>없음</>}>
         <div className="max-w-5xl mx-auto py-12 text-center text-sm text-muted-foreground">
           공고를 찾을 수 없어요.
         </div>
@@ -248,7 +282,7 @@ function JobWorkspaceInner() {
   if (!job.hasAnalyze) {
     return (
       <AppShell
-        ribbonLeft={<>공고 분석</>}
+        ribbonLeft={<>JOB 보드 · 분석</>}
         ribbonRight={<>STATUS: PENDING</>}
       >
         <div className="max-w-6xl mx-auto">
@@ -278,7 +312,7 @@ function JobWorkspaceInner() {
 
   return (
     <AppShell
-      ribbonLeft={<>공고 워크스페이스</>}
+      ribbonLeft={<>JOB 보드 · {job.companyName}</>}
       ribbonRight={
         <>
           {job.progress}/4 완료 · {JOB_STATUS_LABEL[job.status]}
@@ -302,51 +336,37 @@ function JobWorkspaceInner() {
               {job.jobTitle}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-3 p-4 bg-card border border-border rounded-lg elevation-sm">
-              <label className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-muted-foreground">
-                  상태
-                </span>
-                <select
-                  value={job.status}
-                  onChange={(e) => handleStatusChange(e.target.value as JobStatus)}
-                  className="bg-card border border-input rounded-md px-2.5 py-1 text-sm"
-                >
-                  {(Object.keys(JOB_STATUS_LABEL) as JobStatus[]).map((s) => (
-                    <option key={s} value={s}>
-                      {JOB_STATUS_LABEL[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-muted-foreground">
-                  마감일
-                </span>
-                <Input
-                  type="date"
-                  value={job.deadline ?? ""}
-                  onChange={(e) => handleDeadlineChange(e.target.value)}
-                  className="h-8 text-xs w-36"
-                />
-              </label>
-
-              {job.jobUrl && (
+            {job.jobUrl && (
+              <div className="mb-3">
                 <a
                   href={job.jobUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4 ml-auto"
+                  className="text-xs text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4"
                 >
                   원본 공고 ↗
                 </a>
-              )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <StatusCard
+                status={job.status}
+                onChange={handleStatusChange}
+              />
+              <DeadlineCard
+                deadline={job.deadline}
+                onChange={handleDeadlineChange}
+              />
+              <MatchScoreCard
+                score={job.latestMatch?.matchResult.score}
+                onRunMatch={() => handleTabChange("match")}
+              />
             </div>
 
             {nudge && nudge.tab && (
               <button
-                onClick={() => nudge.tab && setActiveTab(nudge.tab)}
+                onClick={() => nudge.tab && handleTabChange(nudge.tab)}
                 className="mt-3 text-sm text-accent-foreground bg-accent/10 border border-accent/30 rounded-md px-4 py-2 inline-flex items-center gap-2 hover:bg-accent/20 transition-colors"
               >
                 <span className="text-accent">→</span>
@@ -364,7 +384,7 @@ function JobWorkspaceInner() {
         <FadeIn delay={0.03}>
           <Tabs
             value={activeTab}
-            onValueChange={(v) => setActiveTab(v as TabValue)}
+            onValueChange={(v) => handleTabChange(v as TabValue)}
           >
             <TabsList variant="line" className="mb-6 w-full flex-wrap">
               {TAB_VALUES.map((v) => (
@@ -441,6 +461,112 @@ function JobWorkspaceInner() {
         </FadeIn>
       </div>
     </AppShell>
+  );
+}
+
+interface StatusCardProps {
+  status: JobStatus;
+  onChange: (next: JobStatus) => void;
+}
+
+function StatusCard({ status, onChange }: StatusCardProps) {
+  return (
+    <div className="bg-card border border-border rounded-lg p-4 elevation-sm">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+        상태
+      </p>
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+            STATUS_STYLE[status],
+          )}
+        >
+          {JOB_STATUS_LABEL[status]}
+        </span>
+        <select
+          value={status}
+          onChange={(e) => onChange(e.target.value as JobStatus)}
+          aria-label="상태 변경"
+          className="bg-transparent border border-input rounded-md px-2 py-1 text-xs ml-auto"
+        >
+          {(Object.keys(JOB_STATUS_LABEL) as JobStatus[]).map((s) => (
+            <option key={s} value={s}>
+              {JOB_STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+interface DeadlineCardProps {
+  deadline?: string;
+  onChange: (deadline: string) => void;
+}
+
+function DeadlineCard({ deadline, onChange }: DeadlineCardProps) {
+  const dLeft = deadline ? daysUntil(deadline) : null;
+  return (
+    <div className="bg-card border border-border rounded-lg p-4 elevation-sm">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+        마감일
+      </p>
+      <div className="flex items-center gap-3">
+        {dLeft !== null ? (
+          <span
+            className={cn(
+              "text-2xl font-black tabular-nums",
+              dLeft < 0 && "text-muted-foreground",
+              dLeft >= 0 && dLeft <= 3 && "text-destructive",
+              dLeft > 3 && "text-foreground",
+            )}
+          >
+            {dLeft < 0 ? "마감" : `D-${dLeft}`}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">미설정</span>
+        )}
+        <Input
+          type="date"
+          value={deadline ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label="마감일"
+          className="h-8 text-xs w-36 ml-auto"
+        />
+      </div>
+    </div>
+  );
+}
+
+interface MatchScoreCardProps {
+  score?: number;
+  onRunMatch: () => void;
+}
+
+function MatchScoreCard({ score, onRunMatch }: MatchScoreCardProps) {
+  return (
+    <div className="bg-card border border-border rounded-lg p-4 elevation-sm">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+        매칭 점수
+      </p>
+      {typeof score === "number" ? (
+        <div className="flex items-baseline gap-1">
+          <span className="text-2xl font-black tabular-nums text-foreground">
+            {Math.round(score)}
+          </span>
+          <span className="text-xs text-muted-foreground">/ 100</span>
+        </div>
+      ) : (
+        <button
+          onClick={onRunMatch}
+          className="text-sm font-medium text-accent-foreground bg-accent/10 border border-accent/30 rounded-md px-3 py-1.5 hover:bg-accent/20 transition-colors"
+        >
+          매칭 실행 →
+        </button>
+      )}
+    </div>
   );
 }
 

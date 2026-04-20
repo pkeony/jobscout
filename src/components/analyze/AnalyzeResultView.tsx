@@ -12,35 +12,13 @@ export function AnalyzeResultView({ result }: { result: AnalysisResult }) {
 
   return (
     <div className="space-y-0">
-      {/* 히어로 헤더 */}
-      <FadeIn>
-        <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-12">
-          <div className="w-full md:w-2/3">
-            <span className="inline-block bg-accent text-accent-foreground px-5 py-2.5 text-sm font-bold mb-6">
-              채용공고 분석 결과
-            </span>
-            <h1 className="text-5xl md:text-7xl font-black text-foreground tracking-tight leading-none mb-4">
-              {result.roleTitle}
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-              {result.summary}
-            </p>
-          </div>
-          <div className="relative w-48 h-48 flex items-center justify-center bg-muted border-4 border-foreground shrink-0">
-            <div className="flex flex-col items-center">
-              <span className="text-6xl font-black text-accent">
-                {result.skills.length}
-              </span>
-              <span className="text-xs text-muted-foreground mt-1">기술 스택</span>
-              <span className="text-xs text-muted-foreground mt-0.5">
-                필수 {required.length}개
-              </span>
-            </div>
-            <div className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 bg-foreground" />
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-foreground" />
-          </div>
-        </div>
-      </FadeIn>
+      {result.summary && (
+        <FadeIn>
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl mb-8">
+            {result.summary}
+          </p>
+        </FadeIn>
+      )}
 
       {/* 좌우 대비: 주요 업무 / 회사 정보 */}
       <FadeIn delay={0.03}>
