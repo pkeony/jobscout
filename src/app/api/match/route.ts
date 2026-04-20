@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { MatchRequestSchema } from "@/types";
 import { stream } from "@/lib/ai";
 import { createSSEStream, sseResponse } from "@/lib/sse";
+import { withCredit } from "@/lib/billing/withCredit";
 import { MATCH_SYSTEM_PROMPT, buildMatchMessages } from "@/lib/prompts/match";
 
-export async function POST(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -55,3 +56,5 @@ export async function POST(req: Request) {
   const sseStream = createSSEStream(wrapped(), req.signal);
   return sseResponse(sseStream);
 }
+
+export const POST = withCredit("api_match", handler);

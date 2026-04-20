@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useUser } from "@/components/supabase-provider";
+import { useBalance } from "@/hooks/use-balance";
 
 interface UserMenuProps {
   onNavigate?: () => void;
@@ -8,6 +10,7 @@ interface UserMenuProps {
 
 export function UserMenu({ onNavigate }: UserMenuProps) {
   const user = useUser();
+  const { balance } = useBalance();
 
   if (!user) {
     return (
@@ -32,26 +35,38 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
     email.split("@")[0];
 
   return (
-    <div className="flex items-center gap-2 rounded-md px-2 py-2">
-      <div className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">
-        {initial}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 rounded-md px-2 py-2">
+        <div className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">
+          {initial}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="truncate text-xs font-medium text-foreground">
+            {displayName}
+          </p>
+          <p className="truncate text-[10px] text-muted-foreground">{email}</p>
+        </div>
+        <form action="/auth/signout" method="post">
+          <button
+            type="submit"
+            onClick={onNavigate}
+            className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label="로그아웃"
+          >
+            나가기
+          </button>
+        </form>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="truncate text-xs font-medium text-foreground">
-          {displayName}
-        </p>
-        <p className="truncate text-[10px] text-muted-foreground">{email}</p>
-      </div>
-      <form action="/auth/signout" method="post">
-        <button
-          type="submit"
-          onClick={onNavigate}
-          className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          aria-label="로그아웃"
-        >
-          나가기
-        </button>
-      </form>
+      <Link
+        href="/settings/billing"
+        onClick={onNavigate}
+        className="flex items-center justify-between rounded-md border border-border/40 bg-background/40 px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+      >
+        <span>크레딧</span>
+        <span className="font-semibold text-foreground">
+          {balance?.remaining ?? "–"}
+        </span>
+      </Link>
     </div>
   );
 }

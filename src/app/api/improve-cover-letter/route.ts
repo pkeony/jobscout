@@ -7,6 +7,7 @@ import {
 import { streamToJson, makeUsage, type StreamEvent } from "@/lib/ai";
 import { IMPROVE_COVER_LETTER_RESPONSE_SCHEMA } from "@/lib/ai/schemas";
 import { createSSEStream, sseResponse } from "@/lib/sse";
+import { withCredit } from "@/lib/billing/withCredit";
 import { validateFile, extractText } from "@/lib/parse/extract-text";
 import {
   IMPROVE_COVER_LETTER_SYSTEM_PROMPT,
@@ -16,7 +17,7 @@ import {
 
 const MAX_JD_LENGTH = 30_000;
 
-export async function POST(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -116,3 +117,5 @@ export async function POST(req: Request) {
   const sseStream = createSSEStream(run(), req.signal);
   return sseResponse(sseStream);
 }
+
+export const POST = withCredit("api_improve_cover_letter", handler);

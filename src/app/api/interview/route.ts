@@ -7,6 +7,7 @@ import {
 import { streamToJson, makeUsage, type StreamEvent } from "@/lib/ai";
 import { INTERVIEW_RESPONSE_SCHEMA } from "@/lib/ai/schemas";
 import { createSSEStream, sseResponse } from "@/lib/sse";
+import { withCredit } from "@/lib/billing/withCredit";
 import {
   INTERVIEW_SYSTEM_PROMPT,
   buildInterviewMessages,
@@ -17,7 +18,7 @@ import {
 const MAX_JD_LENGTH = 30_000;
 const MAX_ATTEMPTS = 2;
 
-export async function POST(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -85,3 +86,5 @@ export async function POST(req: Request) {
   const sseStream = createSSEStream(run(), req.signal);
   return sseResponse(sseStream);
 }
+
+export const POST = withCredit("api_interview", handler);

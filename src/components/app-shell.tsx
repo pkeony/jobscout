@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
 import { MetadataRibbon } from "@/components/metadata-ribbon";
 import { UserMenu } from "@/components/user-menu";
 import { buildJobIndex, type Job } from "@/lib/storage/job-index";
-import { onJobsChanged } from "@/lib/storage/events";
+import { onJobsChanged, onInsufficientCredits } from "@/lib/storage/events";
+import { InsufficientCreditModal } from "@/components/billing/insufficient-credit-modal";
 import {
   JOB_TAB_VALUES,
   JOB_TAB_LABELS,
@@ -71,6 +72,12 @@ export function AppShell({
   useEffect(() => {
     return onJobsChanged(refreshJobs);
   }, [refreshJobs]);
+
+  const [insufficientOpen, setInsufficientOpen] = useState(false);
+
+  useEffect(() => {
+    return onInsufficientCredits(() => setInsufficientOpen(true));
+  }, []);
 
   return (
     <div className="flex min-h-screen">
@@ -181,6 +188,10 @@ export function AppShell({
         )}
         <div className="flex-1 p-6 sm:p-10 lg:p-14">{children}</div>
       </main>
+      <InsufficientCreditModal
+        open={insufficientOpen}
+        onClose={() => setInsufficientOpen(false)}
+      />
     </div>
   );
 }

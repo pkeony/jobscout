@@ -1,19 +1,21 @@
 "use client";
 
 import { useCallback, useReducer, useRef } from "react";
+import { emitCreditsChanged, emitInsufficientCredits } from "@/lib/storage/events";
 
 interface StreamState<T> {
   status: "idle" | "streaming" | "done" | "error";
   chunks: T[];
   fullText: string;
   error: string | null;
+  errorCode: string | null;
 }
 
 type StreamAction<T> =
   | { type: "START" }
   | { type: "CHUNK"; chunk: T; text?: string }
   | { type: "DONE" }
-  | { type: "ERROR"; error: string }
+  | { type: "ERROR"; error: string; code?: string }
   | { type: "RESET" };
 
 function createReducer<T>() {
@@ -23,7 +25,7 @@ function createReducer<T>() {
   ): StreamState<T> {
     switch (action.type) {
       case "START":
-        return { status: "streaming", chunks: [], fullText: "", error: null };
+        return { status: "streaming", chunks: [], fullText: "", error: null, errorCode: null };
       case "CHUNK":
         return {
           ...state,
@@ -33,9 +35,9 @@ function createReducer<T>() {
       case "DONE":
         return { ...state, status: "done" };
       case "ERROR":
-        return { ...state, status: "error", error: action.error };
+        return { ...state, status: "error", error: action.error, errorCode: action.code ?? null };
       case "RESET":
-        return { status: "idle", chunks: [], fullText: "", error: null };
+        return { status: "idle", chunks: [], fullText: "", error: null, errorCode: null };
     }
   };
 }
@@ -45,6 +47,7 @@ const initialState: StreamState<never> = {
   chunks: [],
   fullText: "",
   error: null,
+  errorCode: null,
 };
 
 export function useStreamingResponse<T extends { type: string }>(
@@ -77,8 +80,22 @@ export function useStreamingResponse<T extends { type: string }>(
         });
 
         if (!res.ok) {
-          const errBody = await res.text();
-          dispatch({ type: "ERROR", error: errBody || `HTTP ${res.status}` });
+          const errText = await res.text();
+          let errMsg = errText || `HTTP ${res.status}`;
+          let errCode: string | undefined;
+          try {
+            const parsed = JSON.parse(errText) as { error?: string; code?: string };
+            if (parsed.error) errMsg = parsed.error;
+            if (parsed.code) errCode = parsed.code;
+          } catch {
+            // 본문이 JSON 이 아닐 수 있음 (서버 5xx 등)
+          }
+          dispatch({ type: "ERROR", error: errMsg, code: errCode });
+          // 4xx/5xx 응답은 서버 refund 시점 → 잔고 동기화 트리거
+          emitCreditsChanged();
+          if (errCode === "INSUFFICIENT_CREDITS") {
+            emitInsufficientCredits();
+          }
           return;
         }
 
@@ -123,6 +140,7 @@ export function useStreamingResponse<T extends { type: string }>(
         }
 
         dispatch({ type: "DONE" });
+        emitCreditsChanged();
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         dispatch({

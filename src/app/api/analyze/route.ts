@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { AnalyzeRequestSchema } from "@/types";
 import { stream } from "@/lib/ai";
 import { createSSEStream, sseResponse } from "@/lib/sse";
+import { withCredit } from "@/lib/billing/withCredit";
 import {
   ANALYZE_SYSTEM_PROMPT,
   buildAnalyzeMessages,
 } from "@/lib/prompts/analyze";
 
-export async function POST(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -41,3 +42,5 @@ export async function POST(req: Request) {
   const sseStream = createSSEStream(generator, req.signal);
   return sseResponse(sseStream);
 }
+
+export const POST = withCredit("api_analyze", handler);
