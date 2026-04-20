@@ -1,5 +1,6 @@
 import { AnalyzeHistoryEntrySchema, type AnalyzeHistoryEntry } from "@/types";
 import { z } from "zod";
+import { emitJobsChanged } from "./events";
 
 const HISTORY_KEY = "jobscout:analyzeHistory";
 const MAX_ENTRIES = 20;
@@ -26,6 +27,7 @@ export function loadAnalyzeHistory(): AnalyzeHistoryEntry[] {
 
 function saveHistory(entries: AnalyzeHistoryEntry[]): void {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  emitJobsChanged();
 }
 
 /**
@@ -72,4 +74,5 @@ export function deleteAnalyzeHistoryEntry(id: string): void {
 
 export function clearAnalyzeHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
+  emitJobsChanged();
 }

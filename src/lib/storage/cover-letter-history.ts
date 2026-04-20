@@ -3,6 +3,7 @@ import {
   type CoverLetterHistoryEntry,
 } from "@/types";
 import { z } from "zod";
+import { emitJobsChanged } from "./events";
 
 const HISTORY_KEY = "jobscout:coverLetterHistory";
 const MAX_ENTRIES = 20;
@@ -29,6 +30,7 @@ export function loadCoverLetterHistory(): CoverLetterHistoryEntry[] {
 
 function saveHistory(entries: CoverLetterHistoryEntry[]): void {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  emitJobsChanged();
 }
 
 export function addCoverLetterHistoryEntry(
@@ -50,4 +52,5 @@ export function deleteCoverLetterHistoryEntry(id: string): void {
 
 export function clearCoverLetterHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
+  emitJobsChanged();
 }

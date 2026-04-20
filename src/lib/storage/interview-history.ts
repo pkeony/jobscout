@@ -3,6 +3,7 @@ import {
   type InterviewHistoryEntry,
 } from "@/types";
 import { z } from "zod";
+import { emitJobsChanged } from "./events";
 
 const HISTORY_KEY = "jobscout:interviewHistory";
 const MAX_ENTRIES = 20;
@@ -29,6 +30,7 @@ export function loadInterviewHistory(): InterviewHistoryEntry[] {
 
 function saveHistory(entries: InterviewHistoryEntry[]): void {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  emitJobsChanged();
 }
 
 export function addInterviewHistoryEntry(
@@ -50,4 +52,5 @@ export function deleteInterviewHistoryEntry(id: string): void {
 
 export function clearInterviewHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
+  emitJobsChanged();
 }

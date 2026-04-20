@@ -1,5 +1,6 @@
 import { JobMetaSchema, type JobMeta, type JobStatus } from "@/types";
 import { z } from "zod";
+import { emitJobsChanged } from "./events";
 
 const META_KEY = "jobscout:jobMeta";
 
@@ -24,6 +25,7 @@ export function loadAllJobMeta(): Record<string, JobMeta> {
 
 function saveAllJobMeta(map: Record<string, JobMeta>): void {
   localStorage.setItem(META_KEY, JSON.stringify(map));
+  emitJobsChanged();
 }
 
 export function loadJobMeta(jobId: string): JobMeta {
@@ -56,6 +58,7 @@ export function deleteJobMeta(jobId: string): void {
 export function clearAllJobMeta(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(META_KEY);
+  emitJobsChanged();
 }
 
 export type { JobMeta, JobStatus };
